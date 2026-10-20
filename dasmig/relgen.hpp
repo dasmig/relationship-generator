@@ -1906,7 +1906,7 @@ class relg
     struct raw_member
     {
         relation role{relation::anchor};
-        life life;
+        relg::life life;
         std::string key;                                    // names the stream of the person's name
         std::array<std::int64_t, 2> parents{none_, none_};  // father (or first) and mother (or second), as ids or tokens
         std::int64_t name_child{none_};                     // for a parent: the member whose name theirs follows
@@ -1949,7 +1949,7 @@ class relg
 
     struct child_rec
     {
-        life life;
+        relg::life life;
         int union_index{0};
         bool genetic{true};
         std::optional<person_name> fixed{}; // NOLINT(readability-redundant-member-init)
