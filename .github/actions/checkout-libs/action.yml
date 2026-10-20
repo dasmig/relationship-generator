@@ -1,0 +1,13 @@
+name: Check out the composed libraries
+description: >
+  Checks out the libraries relationship-generator composes, at the release tags
+  it was tested with, under libs/. Move the tags here, in one place, when
+  adopting a newer release; the known-answer tests change with them.
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/checkout@v4
+      with: {repository: dasmig/birth-generator, ref: v3.2.0, path: libs/birth-generator}
+    - uses: actions/checkout@v4
+      with: {repository: dasmig/name-generator, ref: v4.5.0, path: libs/name-generator}

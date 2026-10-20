@@ -1,0 +1,37 @@
+key	value	note
+min_mother_age	12	Youngest age at a birth (curated).
+max_mother_age	49.9	Oldest age at a birth, as WPP's last age group ends at 49 (curated).
+min_father_age	15	Youngest age of a father at a birth (curated).
+max_father_age	80	Oldest age of a father at a birth (curated).
+father_gap_sd	3.5	Standard deviation, in years, of the father's age minus the mother's (curated).
+max_gap_mean	8	Largest mean gap between a father's and a mother's age, however wide the marriage-age gap is (curated).
+conception_lead	0.75	Years before a birth by which the father must be alive (curated; nine months).
+birth_spacing	0.75	Shortest time, in years, between two births of one mother (curated; nine months).
+gompertz_beta	0.09	Rate at which the adult death hazard grows per year of age (curated; literature range 0.08 to 0.11).
+adult_intercept	26	Mean age at death of those who reach 15 is this plus the slope times life expectancy at birth (curated: a line through the Coale-Demeny west model life tables, 61 at e0 50, 82 at e0 80).
+adult_slope	0.7	See adult_intercept (curated).
+child_q15_scale	0.012	Chance of dying before 15 is this times exp((80 - e0) / decay) (curated: 1% at e0 80, 14% at 53).
+child_q15_decay	11	See child_q15_scale (curated).
+dispersion_intercept	0.2	The spread of family size, as variance over mean, is this plus the slope times the mean family size (curated: about 0.6 at 1.4 children, 1 at 3, 2 at 7).
+dispersion_slope	0.27	See dispersion_intercept (curated).
+dispersion_min	0.3	Lowest spread of family size, variance over mean (curated).
+max_siblings	14	Most siblings drawn for one person (curated).
+male_birth_share	0.512	Probability that a birth is male (curated; 105 boys per 100 girls).
+min_union_age	16	Youngest age at which a union begins (curated).
+union_age_sd	4.5	Standard deviation, in years, of the age at first union around the country's mean age at first marriage (curated).
+max_unions	3	Most unions drawn for the anchor (curated).
+same_sex_share	0.03	Share of unions between two people of the same sex (curated; no open demographic source covers every country).
+remarry_share	0.45	Chance that someone begins another union after one ends, by separation or death (curated).
+divorce_duration_mean	9	Mean years, after a first half year, before a union that ends in separation does (curated; exponential).
+remarry_gap_mean	3	Mean years, after a first half year, between one union ending and the next beginning (curated; exponential).
+union_fertility	1	Scale of the mean number of children of a union against the total fertility rate of the year it began (curated; calibrated against the number of children of people aged 45 to 60).
+later_union_factor	0.6	Scale of the mean number of children of the second and later unions (curated).
+adoption_factor	0.15	Mean number of adopted children of a same-sex union, as a fraction of the mean number of children of a union (curated).
+half_sibling_factor	0.6	Chance that a parent has children with someone else, as a fraction of the divorced share among the ever married (curated).
+half_sibling_extra	0.5	Mean number of half-siblings beyond the first, when there is one (curated; Poisson).
+married_name_share	0.8	Chance that a wife takes her husband's family name, where the culture does (curated).
+max_children	12	Most children drawn for one union or one parent (curated).
+union_fertility_offset	0.2	Added to the total fertility rate of the year a union began before scaling, so that people aged 45 to 60 have about the children demographic surveys count: the rate of a year understates what the women who were then young had in all (curated).
+union_early_max	3	Most years by which a union begins before the country's mean age at first marriage: half the years it is above 21 (curated; cohabitation precedes marriage where marriage is late).
+twin_share	0.012	Chance that a birth is a twin birth: another child born the same day (curated; about 12 in 1000 deliveries worldwide, 6 to 9 in East Asia and 16 to 18 in Africa).
+stepchild_factor	0.6	Chance that a partner has children from an earlier union, as a fraction of the partner's divorced share among the ever married (curated).
