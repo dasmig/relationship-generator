@@ -671,7 +671,7 @@ class relg
             }
             // Siblings take ids oldest first; each was drawn from a stream of its
             // own, so the order does not change what is drawn.
-            std::ranges::sort(lin.siblings, [](const life& x, const life& y) { return x.birth < y.birth; });
+            std::ranges::stable_sort(lin.siblings, [](const life& x, const life& y) { return x.birth < y.birth; });
             const auto father = push_(raw, relation::father, lin.father, "father");
             const auto mother = push_(raw, relation::mother, lin.mother, "mother");
             if (spec.father) raw[father].fixed = spec.father->name;
