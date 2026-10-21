@@ -893,7 +893,7 @@ TEST_CASE("to_json, signature and string conversion", "[json]")
 TEST_CASE("known answers for fixed seeds", "[kat]")
 {
     const auto gen = make_loaded_generator();
-    REQUIRE(gen.data_hash() == 0xd00e2a071bf15d73ULL);
+    REQUIRE(gen.data_hash() == 0xa4516485553c1cc1ULL);
 
     family_request request;
     request.anchor.country_code = "BR";
@@ -903,7 +903,7 @@ TEST_CASE("known answers for fixed seeds", "[kat]")
     REQUIRE(gen.get_family(request, 1).to_string() == "BR family of 16 (anchor born 1982-08-15)");
     REQUIRE(gen.get_family(request, 2).to_string() == "BR family of 16 (anchor born 1983-01-14)");
     REQUIRE(gen.get_family(request, 3).to_string() == "BR family of 18 (anchor born 1982-07-05)");
-    REQUIRE(gen.get_family(request, 1).to_json() == R"({"country":"BR","reference_date":"2023-07-01","members":[{"id":0,"role":"anchor","sex":"female","name":{"given":"Gisele","family":"Alves Da Silva Carolina","full":"Gisele Alves Da Silva Carolina"},"birth":"1982-08-15","alive":true,"age":40},{"id":1,"role":"father","sex":"male","name":{"given":"Carlos","family":"Bastos Carolina","full":"Carlos Bastos Carolina"},"birth":"1960-12-22","alive":true,"age":62},{"id":2,"role":"mother","sex":"female","name":{"given":"Thais","family":"Da Silva Alves Da Silva","full":"Thais Da Silva Alves Da Silva"},"birth":"1965-08-28","alive":true,"age":57},{"id":3,"role":"sibling","sex":"female","name":{"given":"Marlene","family":"Alves Da Silva Carolina","full":"Marlene Alves Da Silva Carolina"},"birth":"1986-05-28","alive":true,"age":37},{"id":4,"role":"sibling","sex":"female","name":{"given":"Ana","family":"Alves Da Silva Carolina","full":"Ana Alves Da Silva Carolina"},"birth":"1991-06-08","alive":true,"age":32},{"id":5,"role":"sibling","sex":"female","name":{"given":"Nanda","family":"Alves Da Silva Carolina","full":"Nanda Alves Da Silva Carolina"},"birth":"1994-07-21","alive":true,"age":28},{"id":6,"role":"sibling","sex":"male","name":{"given":"Isaque","family":"Alves Da Silva Carolina","full":"Isaque Alves Da Silva Carolina"},"birth":"1998-09-16","alive":true,"age":24},{"id":7,"role":"sibling","sex":"male","name":{"given":"Ney","family":"Alves Da Silva Carolina","full":"Ney Alves Da Silva Carolina"},"birth":"2003-07-21","alive":true,"age":19},{"id":8,"role":"paternal_grandfather","sex":"male","name":{"given":"Rafael","family":"Tavares Carolina","full":"Rafael Tavares Carolina"},"birth":"1921-12-25","alive":false,"death_age":92,"death":"2014-11-19"},{"id":9,"role":"paternal_grandmother","sex":"female","name":{"given":"Sirlei","family":"Rocha Bastos","full":"Sirlei Rocha Bastos"},"birth":"1931-01-13","alive":false,"death_age":76,"death":"2007-05-26"},{"id":10,"role":"maternal_grandfather","sex":"male","name":{"given":"Kaua","family":"Mello Alves Da Silva","full":"Kaua Mello Alves Da Silva"},"birth":"1931-02-15","alive":true,"age":92},{"id":11,"role":"maternal_grandmother","sex":"female","name":{"given":"Leticia","family":"Moreira Da Silva","full":"Leticia Moreira Da Silva"},"birth":"1939-03-26","alive":false,"death_age":82,"death":"2021-05-15"},{"id":12,"role":"partner","sex":"male","name":{"given":"Jose","family":"Aguiar Firmino","full":"Jose Aguiar Firmino"},"birth":"1976-08-31","alive":true,"age":46},{"id":13,"role":"child","sex":"female","name":{"given":"Mara","family":"Carolina Firmino","full":"Mara Carolina Firmino"},"birth":"2010-01-11","alive":true,"age":13},{"id":14,"role":"child","sex":"male","name":{"given":"Altair","family":"Carolina Firmino","full":"Altair Carolina Firmino"},"birth":"2010-11-24","alive":true,"age":12},{"id":15,"role":"child","sex":"male","name":{"given":"Daniel","family":"Carolina Firmino","full":"Daniel Carolina Firmino"},"birth":"2016-02-23","alive":true,"age":7}],"edges":[{"kind":"parent_of","from":1,"to":0},{"kind":"parent_of","from":2,"to":0},{"kind":"parent_of","from":8,"to":1},{"kind":"parent_of","from":9,"to":1},{"kind":"parent_of","from":10,"to":2},{"kind":"parent_of","from":11,"to":2},{"kind":"parent_of","from":1,"to":3},{"kind":"parent_of","from":2,"to":3},{"kind":"parent_of","from":1,"to":4},{"kind":"parent_of","from":2,"to":4},{"kind":"parent_of","from":1,"to":5},{"kind":"parent_of","from":2,"to":5},{"kind":"parent_of","from":1,"to":6},{"kind":"parent_of","from":2,"to":6},{"kind":"parent_of","from":1,"to":7},{"kind":"parent_of","from":2,"to":7},{"kind":"parent_of","from":12,"to":13},{"kind":"parent_of","from":0,"to":13},{"kind":"parent_of","from":12,"to":14},{"kind":"parent_of","from":0,"to":14},{"kind":"parent_of","from":12,"to":15},{"kind":"parent_of","from":0,"to":15},{"kind":"sibling_of","from":0,"to":3,"full":true},{"kind":"sibling_of","from":0,"to":4,"full":true},{"kind":"sibling_of","from":0,"to":5,"full":true},{"kind":"sibling_of","from":0,"to":6,"full":true},{"kind":"sibling_of","from":0,"to":7,"full":true},{"kind":"sibling_of","from":3,"to":4,"full":true},{"kind":"sibling_of","from":3,"to":5,"full":true},{"kind":"sibling_of","from":3,"to":6,"full":true},{"kind":"sibling_of","from":3,"to":7,"full":true},{"kind":"sibling_of","from":4,"to":5,"full":true},{"kind":"sibling_of","from":4,"to":6,"full":true},{"kind":"sibling_of","from":4,"to":7,"full":true},{"kind":"sibling_of","from":5,"to":6,"full":true},{"kind":"sibling_of","from":5,"to":7,"full":true},{"kind":"sibling_of","from":6,"to":7,"full":true},{"kind":"sibling_of","from":13,"to":14,"full":true},{"kind":"sibling_of","from":13,"to":15,"full":true},{"kind":"sibling_of","from":14,"to":15,"full":true},{"kind":"partner_of","from":0,"to":12,"start":2007,"ended":"ongoing"}],"sources":{"fertility":"country","unions":"country"},"signature":{"seed":"0000000000000001","data":"d00e2a071bf15d73"}})");
+    REQUIRE(gen.get_family(request, 1).to_json() == R"({"country":"BR","reference_date":"2023-07-01","members":[{"id":0,"role":"anchor","sex":"female","name":{"given":"Gisele","family":"Alves Da Silva Carolina","full":"Gisele Alves Da Silva Carolina"},"birth":"1982-08-15","alive":true,"age":40},{"id":1,"role":"father","sex":"male","name":{"given":"Carlos","family":"Bastos Carolina","full":"Carlos Bastos Carolina"},"birth":"1960-12-22","alive":true,"age":62},{"id":2,"role":"mother","sex":"female","name":{"given":"Thais","family":"Da Silva Alves Da Silva","full":"Thais Da Silva Alves Da Silva"},"birth":"1965-08-28","alive":true,"age":57},{"id":3,"role":"sibling","sex":"female","name":{"given":"Marlene","family":"Alves Da Silva Carolina","full":"Marlene Alves Da Silva Carolina"},"birth":"1986-05-28","alive":true,"age":37},{"id":4,"role":"sibling","sex":"female","name":{"given":"Ana","family":"Alves Da Silva Carolina","full":"Ana Alves Da Silva Carolina"},"birth":"1991-06-08","alive":true,"age":32},{"id":5,"role":"sibling","sex":"female","name":{"given":"Nanda","family":"Alves Da Silva Carolina","full":"Nanda Alves Da Silva Carolina"},"birth":"1994-07-21","alive":true,"age":28},{"id":6,"role":"sibling","sex":"male","name":{"given":"Isaque","family":"Alves Da Silva Carolina","full":"Isaque Alves Da Silva Carolina"},"birth":"1998-09-16","alive":true,"age":24},{"id":7,"role":"sibling","sex":"male","name":{"given":"Ney","family":"Alves Da Silva Carolina","full":"Ney Alves Da Silva Carolina"},"birth":"2003-07-21","alive":true,"age":19},{"id":8,"role":"paternal_grandfather","sex":"male","name":{"given":"Rafael","family":"Tavares Carolina","full":"Rafael Tavares Carolina"},"birth":"1921-12-25","alive":false,"death_age":92,"death":"2014-11-19"},{"id":9,"role":"paternal_grandmother","sex":"female","name":{"given":"Sirlei","family":"Rocha Bastos","full":"Sirlei Rocha Bastos"},"birth":"1931-01-13","alive":false,"death_age":76,"death":"2007-05-26"},{"id":10,"role":"maternal_grandfather","sex":"male","name":{"given":"Kaua","family":"Mello Alves Da Silva","full":"Kaua Mello Alves Da Silva"},"birth":"1931-02-15","alive":true,"age":92},{"id":11,"role":"maternal_grandmother","sex":"female","name":{"given":"Leticia","family":"Moreira Da Silva","full":"Leticia Moreira Da Silva"},"birth":"1939-03-26","alive":false,"death_age":82,"death":"2021-05-15"},{"id":12,"role":"partner","sex":"male","name":{"given":"Jose","family":"Aguiar Firmino","full":"Jose Aguiar Firmino"},"birth":"1976-08-31","alive":true,"age":46},{"id":13,"role":"child","sex":"female","name":{"given":"Mara","family":"Carolina Firmino","full":"Mara Carolina Firmino"},"birth":"2010-01-11","alive":true,"age":13},{"id":14,"role":"child","sex":"male","name":{"given":"Altair","family":"Carolina Firmino","full":"Altair Carolina Firmino"},"birth":"2010-11-24","alive":true,"age":12},{"id":15,"role":"child","sex":"male","name":{"given":"Daniel","family":"Carolina Firmino","full":"Daniel Carolina Firmino"},"birth":"2016-02-23","alive":true,"age":7}],"edges":[{"kind":"parent_of","from":1,"to":0},{"kind":"parent_of","from":2,"to":0},{"kind":"parent_of","from":8,"to":1},{"kind":"parent_of","from":9,"to":1},{"kind":"parent_of","from":10,"to":2},{"kind":"parent_of","from":11,"to":2},{"kind":"parent_of","from":1,"to":3},{"kind":"parent_of","from":2,"to":3},{"kind":"parent_of","from":1,"to":4},{"kind":"parent_of","from":2,"to":4},{"kind":"parent_of","from":1,"to":5},{"kind":"parent_of","from":2,"to":5},{"kind":"parent_of","from":1,"to":6},{"kind":"parent_of","from":2,"to":6},{"kind":"parent_of","from":1,"to":7},{"kind":"parent_of","from":2,"to":7},{"kind":"parent_of","from":12,"to":13},{"kind":"parent_of","from":0,"to":13},{"kind":"parent_of","from":12,"to":14},{"kind":"parent_of","from":0,"to":14},{"kind":"parent_of","from":12,"to":15},{"kind":"parent_of","from":0,"to":15},{"kind":"sibling_of","from":0,"to":3,"full":true},{"kind":"sibling_of","from":0,"to":4,"full":true},{"kind":"sibling_of","from":0,"to":5,"full":true},{"kind":"sibling_of","from":0,"to":6,"full":true},{"kind":"sibling_of","from":0,"to":7,"full":true},{"kind":"sibling_of","from":3,"to":4,"full":true},{"kind":"sibling_of","from":3,"to":5,"full":true},{"kind":"sibling_of","from":3,"to":6,"full":true},{"kind":"sibling_of","from":3,"to":7,"full":true},{"kind":"sibling_of","from":4,"to":5,"full":true},{"kind":"sibling_of","from":4,"to":6,"full":true},{"kind":"sibling_of","from":4,"to":7,"full":true},{"kind":"sibling_of","from":5,"to":6,"full":true},{"kind":"sibling_of","from":5,"to":7,"full":true},{"kind":"sibling_of","from":6,"to":7,"full":true},{"kind":"sibling_of","from":13,"to":14,"full":true},{"kind":"sibling_of","from":13,"to":15,"full":true},{"kind":"sibling_of","from":14,"to":15,"full":true},{"kind":"partner_of","from":0,"to":12,"start":2007,"ended":"ongoing"}],"sources":{"fertility":"country","unions":"country"},"signature":{"seed":"0000000000000001","data":"a4516485553c1cc1"}})");
 
     // A hash of 2,000 families with every field drawn.
     family_request any;
@@ -914,7 +914,7 @@ TEST_CASE("known answers for fixed seeds", "[kat]")
     {
         hash = dasmig::core::hash_combine(hash, dasmig::core::fnv1a64(gen.get_family(any, i).to_json()));
     }
-    REQUIRE(hash == 0x98ed0f41611a2535ULL);
+    REQUIRE(hash == 0x73e0ca6ec9a8ad47ULL);
 }
 
 // ---------------------------------------------------------------------------
@@ -1002,7 +1002,7 @@ TEST_CASE("family batch: known answer of 10,000 items", "[batch][kat]")
     gen.for_each_family(request, {.count = 10000, .threads = 4}, 1,
                         [&](std::uint64_t, const family& item)
                         { hash = dasmig::core::hash_combine(hash, dasmig::core::fnv1a64(item.to_json())); });
-    REQUIRE(hash == 0x1f52074655739e9fULL);
+    REQUIRE(hash == 0x2d48cf6eccc678a1ULL);
 }
 
 // ---------------------------------------------------------------------------
@@ -1422,4 +1422,294 @@ TEST_CASE("expanding the anchor keeps the partners' stepchildren", "[step][expan
         return;
     }
     FAIL("no family with stepchildren");
+}
+
+// ---------------------------------------------------------------------------
+// Stepparents and households
+// ---------------------------------------------------------------------------
+
+TEST_CASE("stepparents are off by default and change no other member", "[stepparent]")
+{
+    const auto gen = make_loaded_generator();
+    family_request request;
+    request.anchor.country_code = "US";
+    request.anchor.age = 30;
+    request.up = 2;
+    request.down = 2;
+    int with = 0;
+    for (std::uint64_t seed = 1; seed <= 600; ++seed)
+    {
+        const auto plain = gen.get_family(request, seed);
+        REQUIRE(plain.stepparents().empty());
+        auto asked = request;
+        asked.stepparents = true;
+        const auto f = gen.get_family(asked, seed);
+        REQUIRE(f.members.size() >= plain.members.size());
+        // The stepparents take the last ids, so every other member keeps its id and its data.
+        for (std::size_t i = 0; i < plain.members.size(); ++i)
+        {
+            REQUIRE(f.members[i].role == plain.members[i].role);
+            REQUIRE(f.members[i].name == plain.members[i].name);
+            REQUIRE(f.members[i].birth == plain.members[i].birth);
+        }
+        if (!f.stepparents().empty()) ++with;
+    }
+    REQUIRE(with > 10);
+    REQUIRE(with < 200);
+}
+
+TEST_CASE("a stepparent is a parent's partner who joined while the anchor was a child", "[stepparent]")
+{
+    const auto gen = make_loaded_generator();
+    family_request request;
+    request.anchor.country_code = "US";
+    request.anchor.age = 40;
+    request.stepparents = true;
+    int found = 0;
+    int ended = 0;
+    for (std::uint64_t seed = 1; seed <= 1500; ++seed)
+    {
+        const auto f = gen.get_family(request, seed);
+        for (const auto& s : f.stepparents())
+        {
+            ++found;
+            REQUIRE(((s.role == relation::stepfather) == (s.bio_sex == dasmig::sex::male)));
+            REQUIRE_FALSE(s.name.empty());
+            // The partner of the father or the mother.
+            const auto link = f.union_with(s.id);
+            REQUIRE(link.has_value());
+            const auto& parent = f.members.at(link->from);
+            REQUIRE((parent.role == relation::father || parent.role == relation::mother));
+            REQUIRE(std::ranges::any_of(f.edges, [&](const dasmig::edge& e)
+                                        { return e.kind == dasmig::edge_kind::step_parent_of && e.from == s.id && e.to == 0; }));
+            // It began after the anchor's birth, while the parent was alive.
+            REQUIRE(*link->start >= static_cast<int>(f.anchor().birth.year()));
+            REQUIRE(*link->start >= static_cast<int>(parent.birth.year()) + 12);
+            if (link->ended == dasmig::union_end::ongoing)
+            {
+                REQUIRE(s.alive);
+                REQUIRE(parent.alive);
+            }
+            else
+            {
+                ++ended;
+                REQUIRE(*link->end >= *link->start);
+                if (link->ended == dasmig::union_end::death) REQUIRE((!s.alive || !parent.alive));
+            }
+            // The anchor's real parents stay the only parent_of edges into the anchor.
+            for (const auto& e : f.edges)
+            {
+                if (e.kind == dasmig::edge_kind::parent_of && e.to == 0) REQUIRE(e.from != s.id);
+            }
+        }
+    }
+    REQUIRE(found > 50);
+    REQUIRE(ended > 5);
+}
+
+TEST_CASE("stepparents need parents", "[stepparent]")
+{
+    const auto gen = make_loaded_generator();
+    family_request request;
+    request.anchor.country_code = "US";
+    request.stepparents = true;
+    request.up = 0;
+    for (std::uint64_t seed = 1; seed <= 200; ++seed) REQUIRE(gen.get_family(request, seed).stepparents().empty());
+}
+
+TEST_CASE("stepparents are more common where more parents divorce", "[stepparent]")
+{
+    const auto gen = make_loaded_generator();
+    const auto share = [&](const char* country)
+    {
+        family_request request;
+        request.anchor.country_code = country;
+        request.anchor.age = 30;
+        request.stepparents = true;
+        request.names = false;
+        int with = 0;
+        for (std::uint64_t seed = 1; seed <= 2000; ++seed) with += gen.get_family(request, seed).stepparents().empty() ? 0 : 1;
+        return with;
+    };
+    REQUIRE(share("US") > share("NG"));
+}
+
+TEST_CASE("expanding a family with stepparents keeps the anchor's own unions", "[stepparent][expand]")
+{
+    const auto gen = make_loaded_generator();
+    family_request request;
+    request.anchor.country_code = "US";
+    request.anchor.age = 45;
+    request.stepparents = true;
+    for (std::uint64_t seed = 1; seed <= 400; ++seed)
+    {
+        const auto base = gen.get_family(request, seed);
+        if (base.partners().empty()) continue; // a partner the base left out is drawn again
+        const auto g = gen.expand(base, 0, request, 7);
+        REQUIRE(g.partners().size() == base.partners().size());
+        REQUIRE(g.children().size() == base.children().size());
+    }
+}
+
+TEST_CASE("a household is off by default and changes nothing else", "[household]")
+{
+    const auto gen = make_loaded_generator();
+    family_request request;
+    request.anchor.country_code = "BR";
+    for (std::uint64_t seed = 1; seed <= 300; ++seed)
+    {
+        const auto plain = gen.get_family(request, seed);
+        REQUIRE_FALSE(plain.home.has_value());
+        REQUIRE(plain.to_json().find("\"household\"") == std::string::npos);
+        auto asked = request;
+        asked.home = true;
+        auto f = gen.get_family(asked, seed);
+        REQUIRE(f.home.has_value());
+        REQUIRE(f.to_json().find("\"household\":{\"type\":\"") != std::string::npos);
+        f.home.reset();
+        REQUIRE(f.to_json() == plain.to_json());
+    }
+}
+
+TEST_CASE("a household holds living members, the anchor first, with no repeats", "[household]")
+{
+    const auto gen = make_loaded_generator();
+    for (const char* country : {"US", "BR", "NG", "DE", "JP", "IN"})
+    {
+        family_request request;
+        request.anchor.country_code = country;
+        request.home = true;
+        request.stepparents = true;
+        request.up = 2;
+        request.names = false;
+        for (std::uint64_t seed = 1; seed <= 800; ++seed)
+        {
+            const auto f = gen.get_family(request, seed);
+            const auto& h = *f.home;
+            REQUIRE(h.members.front() == 0);
+            std::set<std::size_t> unique(h.members.begin(), h.members.end());
+            REQUIRE(unique.size() == h.members.size());
+            for (const auto id : h.members)
+            {
+                REQUIRE(id < f.members.size());
+                REQUIRE(f.members[id].alive);
+            }
+            using dasmig::household_type;
+            switch (h.type)
+            {
+            case household_type::one_person: REQUIRE(h.members.size() == 1); break;
+            case household_type::couple: REQUIRE(h.members.size() == 2); break;
+            case household_type::nuclear:
+            case household_type::single_parent:
+            case household_type::with_parents:
+            case household_type::multi_generation: REQUIRE(h.members.size() >= 2); break;
+            case household_type::other: break;
+            }
+        }
+    }
+}
+
+TEST_CASE("a child lives with a living parent and an adult with an ongoing partner", "[household]")
+{
+    const auto gen = make_loaded_generator();
+    int children = 0;
+    int couples = 0;
+    for (std::uint64_t seed = 1; seed <= 1500; ++seed)
+    {
+        family_request request;
+        request.anchor.country_code = "US";
+        request.home = true;
+        request.names = false;
+        request.anchor.age = seed % 2 == 0 ? 10 : 40;
+        const auto f = gen.get_family(request, seed);
+        const auto in_home = [&](std::size_t id) { return std::ranges::find(f.home->members, id) != f.home->members.end(); };
+        if (f.anchor().age < 18)
+        {
+            ++children;
+            bool parent_alive = false;
+            for (const auto& m : f.members) parent_alive |= (m.role == relation::father || m.role == relation::mother) && m.alive;
+            if (parent_alive)
+            {
+                REQUIRE(f.home->type != dasmig::household_type::other);
+                const bool with_parent = std::ranges::any_of(
+                    f.members, [&](const person& m) { return (m.role == relation::father || m.role == relation::mother) && in_home(m.id); });
+                REQUIRE(with_parent);
+            }
+            else
+            {
+                REQUIRE(f.home->type == dasmig::household_type::other);
+            }
+        }
+        else
+        {
+            for (const auto& e : f.edges)
+            {
+                if (e.kind == dasmig::edge_kind::partner_of && e.from == 0 && e.ended == dasmig::union_end::ongoing)
+                {
+                    ++couples;
+                    REQUIRE(in_home(e.to));
+                }
+            }
+            // The children of an ongoing union who are under 18 live there too.
+            for (const auto& m : f.members)
+            {
+                if (m.role != relation::child || !m.alive || m.age >= 18) continue;
+                for (const auto& e : f.edges)
+                {
+                    if (e.kind != dasmig::edge_kind::parent_of || e.to != m.id || e.from == 0) continue;
+                    if (f.union_with(e.from) && f.union_with(e.from)->ended == dasmig::union_end::ongoing) REQUIRE(in_home(m.id));
+                }
+            }
+        }
+    }
+    REQUIRE(children > 300);
+    REQUIRE(couples > 100);
+}
+
+TEST_CASE("unpartnered adults live alone more where one-person households are common", "[household]")
+{
+    const auto gen = make_loaded_generator();
+    const auto alone = [&](const char* country)
+    {
+        family_request request;
+        request.anchor.country_code = country;
+        request.anchor.age = 45;
+        request.home = true;
+        request.names = false;
+        request.partners = true;
+        request.down = 0;
+        int n = 0;
+        for (std::uint64_t seed = 1; seed <= 3000; ++seed)
+            n += gen.get_family(request, seed).home->type == dasmig::household_type::one_person ? 1 : 0;
+        return n;
+    };
+    REQUIRE(alone("DE") > alone("BR"));
+    REQUIRE(alone("DE") > 3 * alone("NG") / 2);
+}
+
+TEST_CASE("households are deterministic and agree across batches", "[household]")
+{
+    auto gen = make_loaded_generator();
+    family_request request;
+    request.anchor.country_code = "JP";
+    request.home = true;
+    request.stepparents = true;
+    const auto a = gen.get_family(request, 99);
+    REQUIRE(a.to_json() == gen.get_family(request, 99).to_json());
+    const auto batch = gen.get_family_batch(request, {.count = 40, .threads = 2}, 5);
+    for (std::size_t i = 0; i < batch.size(); ++i)
+        REQUIRE(batch[i].to_json() == gen.get_family(request, dasmig::core::item_seed(5, i)).to_json());
+}
+
+TEST_CASE("family batch with stepparents and households: known answer of 10,000 items", "[batch][kat][household]")
+{
+    auto gen = make_loaded_generator();
+    family_request request;
+    request.stepparents = true;
+    request.home = true;
+    std::uint64_t hash = 0xcbf29ce484222325ULL;
+    gen.for_each_family(request, {.count = 10000, .threads = 4}, 1,
+                        [&](std::uint64_t, const family& item)
+                        { hash = dasmig::core::hash_combine(hash, dasmig::core::fnv1a64(item.to_json())); });
+    REQUIRE(hash == 0xf1c9db3bd1993a70ULL);
 }

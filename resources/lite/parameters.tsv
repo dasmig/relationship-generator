@@ -35,3 +35,10 @@ union_fertility_offset	0.2	Added to the total fertility rate of the year a union
 union_early_max	3	Most years by which a union begins before the country's mean age at first marriage: half the years it is above 21 (curated; cohabitation precedes marriage where marriage is late).
 twin_share	0.012	Chance that a birth is a twin birth: another child born the same day (curated; about 12 in 1000 deliveries worldwide, 6 to 9 in East Asia and 16 to 18 in Africa).
 stepchild_factor	0.6	Chance that a partner has children from an earlier union, as a fraction of the partner's divorced share among the ever married (curated).
+stepparent_factor	1	Scale of the chance that a parent has a new partner while the anchor is a child, against the parent's divorced share among the ever married times remarry_share (curated).
+stepparent_start_mean	6	Mean years, after the first year of the anchor's life, before a parent's new union begins (curated; exponential).
+mother_custody_share	0.8	Chance that a child lives with its mother rather than its father after the parents separate (curated; about 80% of lone-parent households are headed by a mother worldwide).
+household_minor_age	18	Age below which a person is a child who lives with its parents (curated).
+young_adult_home_age	30	Age below which an adult with no partner or child may live with a parent (curated).
+young_adult_home_share	0.5	Chance that such an adult does (curated; about half of unpartnered adults in their twenties live with a parent in Europe and more in Asia and Africa).
+one_person_scale	3	People who live alone are about this many times the one-person households' share, among adults with no partner or child at home: such households are a small part of all of them but of few people (curated).

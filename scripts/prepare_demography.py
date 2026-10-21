@@ -282,6 +282,17 @@ def _write(path: str, columns: list[str], rows: list[dict]) -> None:
     print(f"  Wrote {len(rows)} rows to {os.path.normpath(path)}")
 
 
+# Subregions where no country has a survey figure, so the median is missing and
+# a country would fall back to the world's (a third of households), which is far
+# too high for them. Curated (rule 6): the multi-generation share of households
+# is a few per cent in Western Europe (Eurostat, national censuses) and in
+# Australia and New Zealand (the 2021 censuses).
+_CURATED_DEFAULTS = {
+    ("Western Europe", "multi_generation"): 5.0,
+    ("Australia and New Zealand", "multi_generation"): 6.0,
+}
+
+
 def _defaults(tables: dict[str, dict[str, dict]], countries: dict[str, dict]) -> list[dict]:
     """Median of every numeric column per subregion; `World` is the median of all."""
     columns = [c for c in _FERTILITY_COLUMNS[1:] + _UNION_COLUMNS[1:] + _HOUSEHOLD_COLUMNS[1:]
@@ -302,6 +313,8 @@ def _defaults(tables: dict[str, dict[str, dict]], countries: dict[str, dict]) ->
             values = [merged[k][c] for k in groups[name] if merged[k].get(c) is not None]
             if values:
                 row[c] = statistics.median(values)
+            elif (name, c) in _CURATED_DEFAULTS:
+                row[c] = _CURATED_DEFAULTS[(name, c)]
         rows.append(row)
     return rows
 
