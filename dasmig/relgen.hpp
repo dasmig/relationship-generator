@@ -16,6 +16,8 @@
 #include <cstdint>
 #include <filesystem>
 #include <format>
+#include <initializer_list>
+#include <map>
 #include <optional>
 #include <ostream>
 #include <span>
@@ -152,6 +154,17 @@ struct family_request
     ///        Needs `names`; a culture with no names loaded leaves the family
     ///        without names.
     std::optional<culture> name_culture{}; // NOLINT(readability-redundant-member-init)
+    /// @brief Whether to include the partners of the anchor's parents who are
+    ///        not the other parent (stepfathers and stepmothers), who joined
+    ///        a parent while the anchor was a child. Off by default, and then
+    ///        nothing else about the family changes. Needs `up >= 1`.
+    bool stepparents{false};
+    /// @brief Whether to draw who the anchor lives with at the reference date
+    ///        (`family::home`). Off by default, and then nothing else about
+    ///        the family changes. It is drawn from the relatives the family
+    ///        holds, so a family without parents (`up = 0`) leaves a child
+    ///        with no one to live with.
+    bool home{false};
     /// @brief Population-weighted (true) or uniform country, when drawn.
     bool weighted{true};
     /// @brief The date ages and who is alive are computed at (1 July 2023,
@@ -174,7 +187,9 @@ enum class relation : std::uint8_t
     partner,              ///< A partner of the anchor, current or former.
     child,                ///< A child of the anchor, by birth or adoption.
     grandchild,           ///< A child of one of the anchor's children.
-    stepchild             ///< A child of a partner by an earlier union, not the anchor's.
+    stepchild,            ///< A child of a partner by an earlier union, not the anchor's.
+    stepfather,           ///< A man who is, or was, a parent's partner while the anchor was a child.
+    stepmother            ///< A woman who is, or was, a parent's partner while the anchor was a child.
 };
 
 /// @brief The name of a relation as it appears in JSON (`paternal_grandfather`).
@@ -197,6 +212,8 @@ enum class relation : std::uint8_t
     case relation::child: return "child";
     case relation::grandchild: return "grandchild";
     case relation::stepchild: return "stepchild";
+    case relation::stepfather: return "stepfather";
+    case relation::stepmother: return "stepmother";
     }
     return "unknown";
 }
@@ -222,9 +239,10 @@ struct person
 /// @brief How two members are linked.
 enum class edge_kind : std::uint8_t
 {
-    parent_of,  ///< `from` is a parent of `to`.
-    sibling_of, ///< `from` and `to` share a parent; `from` is the older.
-    partner_of  ///< `from` (the anchor) and `to` are, or were, partners.
+    parent_of,      ///< `from` is a parent of `to`.
+    sibling_of,     ///< `from` and `to` share a parent; `from` is the older.
+    partner_of,     ///< `from` (the anchor, or a parent of the anchor for a stepparent) and `to` are, or were, partners.
+    step_parent_of  ///< `from` (a stepfather or stepmother) is a stepparent of `to` (the anchor).
 };
 
 /// @brief How a union ended.
@@ -260,6 +278,44 @@ struct edge
     std::optional<int> start{};           ///< For partners: the year the union began.
     std::optional<int> end{};             ///< For partners: the year it ended, if it has.
     union_end ended{union_end::ongoing};  ///< For partners: how it ended.
+};
+
+/// @brief The kind of home the anchor lives in at the reference date.
+enum class household_type : std::uint8_t
+{
+    one_person,       ///< The anchor lives alone.
+    couple,           ///< The anchor and a partner.
+    nuclear,          ///< Two adults and children under 18.
+    single_parent,    ///< One adult and children under 18.
+    with_parents,     ///< An adult living with a parent (and the younger siblings still at home).
+    multi_generation, ///< Three generations, or an adult household that includes a parent.
+    other             ///< Anyone else: the relatives the family holds do not live with the anchor.
+};
+
+/// @brief The name of a household type as it appears in JSON.
+/// @param t The type.
+/// @return `one_person`, `couple`, `nuclear`, `single_parent`, `with_parents`,
+///         `multi_generation` or `other`.
+[[nodiscard]] constexpr std::string_view household_type_name(household_type t) noexcept
+{
+    switch (t)
+    {
+    case household_type::one_person: return "one_person";
+    case household_type::couple: return "couple";
+    case household_type::nuclear: return "nuclear";
+    case household_type::single_parent: return "single_parent";
+    case household_type::with_parents: return "with_parents";
+    case household_type::multi_generation: return "multi_generation";
+    case household_type::other: return "other";
+    }
+    return "unknown";
+}
+
+/// @brief Who the anchor lives with.
+struct household
+{
+    household_type type{household_type::other}; ///< The kind of home.
+    std::vector<std::size_t> members{0};        ///< Ids of the people living there, the anchor (0) first; all alive.
 };
 
 /// @brief Where a table's values came from for the family's country.
@@ -298,6 +354,7 @@ class family
     std::vector<edge> edges;                  ///< Parent, sibling and partner links.
     data_source fertility_source{data_source::country}; ///< Where the fertility figures came from.
     data_source union_source{data_source::country};     ///< Where the marriage figures came from.
+    std::optional<household> home{};          ///< Who the anchor lives with; set only when `family_request::home` was. // NOLINT(readability-redundant-member-init)
 
     /// @brief The person the family is built around.
     /// @return `members[0]`.
@@ -361,6 +418,16 @@ class family
     /// @brief The children of the anchor's partners by earlier unions.
     /// @return The stepchildren, oldest first.
     [[nodiscard]] std::vector<person> stepchildren() const { return with_role(relation::stepchild); }
+
+    /// @brief The anchor's stepparents: the partners of a parent who are not
+    ///        the other parent.
+    /// @return Stepfathers then stepmothers, as present (see `family_request::stepparents`).
+    [[nodiscard]] std::vector<person> stepparents() const
+    {
+        auto out = with_role(relation::stepfather);
+        for (auto& m : with_role(relation::stepmother)) out.push_back(std::move(m));
+        return out;
+    }
 
     /// @brief The union with a partner.
     /// @param partner_id The partner's id.
@@ -444,11 +511,20 @@ class family
                 if (e.end) w.field("end", *e.end);
                 w.field("ended", union_end_name(e.ended));
                 break;
+            case edge_kind::step_parent_of:
+                w.field("kind", "step_parent_of").field("from", e.from).field("to", e.to);
+                break;
             }
             w.end_object();
         }
-        w.end_array()
-            .key("sources")
+        w.end_array();
+        if (home)
+        {
+            w.key("household").begin_object().field("type", household_type_name(home->type)).key("members").begin_array();
+            for (const auto id : home->members) w.value(id);
+            w.end_array().end_object();
+        }
+        w.key("sources")
             .begin_object()
             .field("fertility", data_source_name(fertility_source))
             .field("unions", data_source_name(union_source))
@@ -872,6 +948,33 @@ class relg
             }
         }
 
+        // The partners of a parent who are not the other parent. They take the
+        // last ids, so asking for them changes no other member's id.
+        std::vector<step_rec> steps;
+        std::vector<std::size_t> step_ids;
+        std::vector<std::size_t> step_parents;
+        if (request.stepparents && request.up >= 1)
+        {
+            const auto sp = call.split("stepparents");
+            const struct
+            {
+                std::size_t parent;
+                std::string_view label;
+            } sides[] = {{1, "father"}, {2, "mother"}};
+            for (const auto& side : sides)
+            {
+                const auto rec = draw_stepparent_(cm, anchor.country, raw.at(side.parent).life, anchor.birth_day, ref_day,
+                                                  sp.split(side.label));
+                if (!rec) continue;
+                const auto id = push_(raw, rec->partner.s == sex::male ? relation::stepfather : relation::stepmother,
+                                      rec->partner, "stepparent." + std::string{side.label});
+                raw[id].name_child = static_cast<std::int64_t>(side.parent);
+                steps.push_back(*rec);
+                step_ids.push_back(id);
+                step_parents.push_back(side.parent);
+            }
+        }
+
         // Parent links, then sibling links (members that share a parent, oldest
         // first, full when both parents are shared), then the anchor's unions.
         for (std::size_t i = 0; i < raw.size(); ++i)
@@ -911,6 +1014,15 @@ class relg
             e.ended = u.ended;
             f.edges.push_back(e);
         }
+        for (std::size_t k = 0; k < steps.size(); ++k)
+        {
+            edge e{.kind = edge_kind::partner_of, .from = step_parents[k], .to = step_ids[k]};
+            e.start = static_cast<int>(from_days_(steps[k].start).year());
+            if (steps[k].ended != union_end::ongoing) e.end = static_cast<int>(from_days_(steps[k].end).year());
+            e.ended = steps[k].ended;
+            f.edges.push_back(e);
+            f.edges.push_back({.kind = edge_kind::step_parent_of, .from = step_ids[k], .to = 0});
+        }
 
         for (std::size_t i = 0; i < raw.size(); ++i)
         {
@@ -918,6 +1030,7 @@ class relg
             f.members.back().twin = twin[i];
         }
         if (request.names) assign_names_(f.members, raw, call.split("names"), anchor.country, request.name_culture);
+        if (request.home) f.home = draw_household_(cm, f, call.split("household"));
         return f;
     }
 
@@ -1365,6 +1478,13 @@ class relg
         double max_children{12.0};
         double twin_share{0.012};
         double stepchild_factor{0.6};
+        double stepparent_factor{1.0};
+        double stepparent_start_mean{6.0};
+        double mother_custody_share{0.8};
+        double household_minor_age{18.0};
+        double young_adult_home_age{30.0};
+        double young_adult_home_share{0.5};
+        double one_person_scale{3.0};
     };
 
     struct param_def
@@ -1373,7 +1493,7 @@ class relg
         double parameters::*member;
     };
 
-    static constexpr std::array<param_def, 36> param_table_{{
+    static constexpr std::array<param_def, 43> param_table_{{
         {"min_mother_age", &parameters::min_mother_age},
         {"max_mother_age", &parameters::max_mother_age},
         {"min_father_age", &parameters::min_father_age},
@@ -1410,6 +1530,13 @@ class relg
         {"max_children", &parameters::max_children},
         {"twin_share", &parameters::twin_share},
         {"stepchild_factor", &parameters::stepchild_factor},
+        {"stepparent_factor", &parameters::stepparent_factor},
+        {"stepparent_start_mean", &parameters::stepparent_start_mean},
+        {"mother_custody_share", &parameters::mother_custody_share},
+        {"household_minor_age", &parameters::household_minor_age},
+        {"young_adult_home_age", &parameters::young_adult_home_age},
+        {"young_adult_home_share", &parameters::young_adult_home_share},
+        {"one_person_scale", &parameters::one_person_scale},
     }};
 
     struct fertility_row
@@ -1431,10 +1558,20 @@ class relg
         data_source source{data_source::country};
     };
 
+    struct household_row
+    {
+        double size{0.0};             // mean persons per household
+        double one_person{0.0};       // percent of households with one person
+        double single_parent{0.0};    // percent of households with a lone parent and children
+        double multi_generation{0.0}; // percent of households with three generations
+        data_source source{data_source::country};
+    };
+
     struct country_model
     {
         fertility_row fertility;
         union_row unions;
+        household_row households;
     };
 
     struct model
@@ -1576,6 +1713,15 @@ class relg
                 .source = source};
     }
 
+    static household_row make_household_(const lookup_cells& l, data_source source)
+    {
+        return {.size = l.value("size"),
+                .one_person = l.value("one_person"),
+                .single_parent = l.value("single_parent"),
+                .multi_generation = l.value("multi_generation"),
+                .source = source};
+    }
+
     static model build_model_(const tables& tbls)
     {
         model m;
@@ -1590,7 +1736,11 @@ class relg
         }
         if (m.params.gompertz_beta <= 0.0 || m.params.dispersion_min <= 0.0 || m.params.child_q15_decay <= 0.0 || m.params.birth_spacing <= 0.0 ||
             m.params.min_mother_age >= m.params.max_mother_age || m.params.male_birth_share > 1.0 ||
-            m.params.twin_share < 0.0 || m.params.twin_share > 0.5 || m.params.stepchild_factor < 0.0)
+            m.params.twin_share < 0.0 || m.params.twin_share > 0.5 || m.params.stepchild_factor < 0.0 ||
+            m.params.stepparent_factor < 0.0 || m.params.stepparent_start_mean <= 0.0 ||
+            m.params.mother_custody_share < 0.0 || m.params.mother_custody_share > 1.0 ||
+            m.params.household_minor_age < 1.0 || m.params.young_adult_home_share < 0.0 ||
+            m.params.young_adult_home_share > 1.0 || m.params.one_person_scale < 0.0)
         {
             throw std::runtime_error("relationship-generator: parameters.tsv has an impossible value");
         }
@@ -1603,6 +1753,7 @@ class relg
         const auto defaults = read_table_(tbls[index_(table::defaults)], table::defaults);
         const auto fert = read_table_(tbls[index_(table::fertility)], table::fertility);
         const auto uni = read_table_(tbls[index_(table::unions)], table::unions);
+        const auto hh = read_table_(tbls[index_(table::households)], table::households);
         const auto world = defaults.find("World");
         if (world == defaults.end()) return m; // not ready: has_own_data_() reports it
 
@@ -1626,6 +1777,7 @@ class relg
         for (const auto& [code, _] : region) codes.push_back(code);
         for (const auto& [code, _] : fert) codes.push_back(code);
         for (const auto& [code, _] : uni) codes.push_back(code);
+        for (const auto& [code, _] : hh) codes.push_back(code);
         std::ranges::sort(codes);
         codes.erase(std::ranges::unique(codes).begin(), codes.end());
 
@@ -1633,11 +1785,14 @@ class relg
         {
             const auto [fl, fs] = resolve(code, fert, table::fertility);
             const auto [ul, us] = resolve(code, uni, table::unions);
-            m.countries.emplace(code, country_model{.fertility = make_fertility_(fl, fs), .unions = make_union_(ul, us)});
+            const auto [hl, hs] = resolve(code, hh, table::households);
+            m.countries.emplace(code, country_model{.fertility = make_fertility_(fl, fs), .unions = make_union_(ul, us),
+                                                    .households = make_household_(hl, hs)});
         }
         const lookup_cells only_world{.country = nullptr, .subregion = nullptr, .world = &world->second};
         m.world = {.fertility = make_fertility_(only_world, data_source::world),
-                   .unions = make_union_(only_world, data_source::world)};
+                   .unions = make_union_(only_world, data_source::world),
+                   .households = make_household_(only_world, data_source::world)};
         m.ready = true;
         return m;
     }
@@ -1827,7 +1982,7 @@ class relg
         {
             for (const auto& e : f.edges)
             {
-                if (e.kind != edge_kind::partner_of) continue;
+                if (e.kind != edge_kind::partner_of || e.from != 0) continue;
                 known_union u;
                 u.partner = known_of_(f, e.to, false);
                 u.start = mid_year_(*e.start);
@@ -2530,6 +2685,270 @@ class relg
                                r.split("births"));
     }
 
+    struct step_rec
+    {
+        life partner;
+        double start{0.0};
+        double end{0.0};
+        union_end ended{union_end::ongoing};
+    };
+
+    // A parent's partner who is not the anchor's other parent. The chance is
+    // the parent's divorced share among the ever married, times
+    // `remarry_share` and `stepparent_factor`; the union begins a year or
+    // more after the anchor's birth (an exponential spell with mean
+    // `stepparent_start_mean`) while the parent is alive, and the partner is
+    // drawn as for the anchor's own unions, of the other sex unless the union
+    // is same-sex. It ends in a separation, or at the first death.
+    [[nodiscard]] std::optional<step_rec> draw_stepparent_(const country_model& cm, const std::string& country,
+                                                           const life& parent, double child_birth, double ref_day,
+                                                           const core::rng& r) const
+    {
+        const auto& p = _model.params;
+        const bool male = parent.s == sex::male;
+        const double never = male ? cm.unions.never_m : cm.unions.never_f;
+        const double divorced = male ? cm.unions.divorced_m : cm.unions.divorced_f;
+        const double p_divorce = clamp_(divorced / std::max(100.0 - never, 10.0), 0.0, 0.7);
+        const double chance = clamp_(p.stepparent_factor * p_divorce * p.remarry_share, 0.0, 0.9);
+        auto roll = r.split("roll");
+        if (!core::bernoulli(roll, chance)) return std::nullopt;
+        const double start = forward_(child_birth, 1.0 + exponential_(roll, p.stepparent_start_mean));
+        const double parent_death = forward_(parent.birth, parent.lifespan);
+        const double parent_age = (start - parent.birth) / year_days_;
+        if (start >= std::min(parent_death, ref_day) || parent_age < p.min_union_age) return std::nullopt;
+
+        step_rec out;
+        out.start = start;
+        auto sex_rng = r.split("sex");
+        const bool same_sex = core::bernoulli(sex_rng, p.same_sex_share);
+        const sex ps = same_sex ? parent.s : (male ? sex::female : sex::male);
+        const double mean_gap = clamp_(cm.unions.smam_m - cm.unions.smam_f, 0.0, p.max_gap_mean);
+        auto gap_rng = r.split("gap");
+        const double signed_gap = same_sex ? 0.0 : (male ? -mean_gap : mean_gap);
+        const double partner_age = std::max(p.min_union_age, parent_age + core::normal(gap_rng, signed_gap, p.father_gap_sd));
+        out.partner = draw_life_(r.split("life"), country, ps, back_(start, partner_age), partner_age);
+        const double partner_death = forward_(out.partner.birth, out.partner.lifespan);
+        out.end = ref_day;
+        auto end_rng = r.split("end");
+        const bool separates = core::bernoulli(end_rng, p_divorce);
+        const double separation = forward_(start, 0.5 + exponential_(end_rng, p.divorce_duration_mean));
+        const double first_death = std::min(partner_death, parent_death);
+        if (separates && separation < std::min(first_death, ref_day))
+        {
+            out.end = separation;
+            out.ended = union_end::divorce;
+        }
+        else if (first_death <= ref_day)
+        {
+            out.end = first_death;
+            out.ended = union_end::death;
+        }
+        return out;
+    }
+
+    // Who the anchor lives with at the reference date, from the members the
+    // family holds (all of them alive).
+    //
+    // A child lives with its living parents, as a lone parent's child with
+    // the share of lone-parent households (`single_parent`), or with the
+    // parent who has a partner (a stepparent) and that partner; younger
+    // brothers and sisters of those parents come along, and with the share of
+    // three-generation households (`multi_generation`) a grandparent. An adult
+    // lives with an ongoing partner and the children under 18 of that union
+    // (and of the partner's) and, after a separation, with the children the
+    // mother (`mother_custody_share`) or the father keeps. Without either, a
+    // young adult may live with the parents (`young_adult_home_share`), and
+    // others live alone in the share of one-person households scaled to
+    // people (`one_person_scale`).
+    [[nodiscard]] household draw_household_(const country_model& cm, const family& f, const core::rng& r) const
+    {
+        const auto& p = _model.params;
+        const auto& row = cm.households;
+        const auto& me = f.members.front();
+        auto roll = r.split("roll");
+        household out;
+        const auto pct = [](double v) { return clamp_(v / 100.0, 0.0, 0.9); };
+        const auto minor = [&](std::size_t id)
+        { return f.members[id].alive && static_cast<double>(f.members[id].age) < p.household_minor_age; };
+        const auto has_edge = [&](edge_kind kind, std::size_t from, std::size_t to)
+        {
+            return std::ranges::any_of(f.edges, [&](const edge& e) { return e.kind == kind && e.from == from && e.to == to; });
+        };
+        const auto ongoing = [&](std::size_t a, std::size_t b)
+        {
+            return std::ranges::any_of(f.edges, [&](const edge& e)
+                                       { return e.kind == edge_kind::partner_of && e.from == a && e.to == b &&
+                                                e.ended == union_end::ongoing; });
+        };
+        const auto add = [&](std::size_t id)
+        {
+            if (std::ranges::find(out.members, id) == out.members.end()) out.members.push_back(id);
+        };
+        const auto role_ids = [&](std::initializer_list<relation> roles, bool alive_only)
+        {
+            std::vector<std::size_t> ids;
+            for (const auto& m : f.members)
+            {
+                if (std::ranges::find(roles, m.role) != roles.end() && (!alive_only || m.alive)) ids.push_back(m.id);
+            }
+            return ids;
+        };
+        // The younger brothers and sisters of the anchor who share one of `parents`.
+        const auto add_siblings = [&](const std::vector<std::size_t>& parents)
+        {
+            for (const auto id : role_ids({relation::sibling, relation::half_sibling}, true))
+            {
+                if (minor(id) && std::ranges::any_of(parents, [&](std::size_t q) { return has_edge(edge_kind::parent_of, q, id); }))
+                    add(id);
+            }
+        };
+        // One living member of `candidates`, for the three-generation draw.
+        const auto pick = [&](const std::vector<std::size_t>& candidates) -> std::optional<std::size_t>
+        {
+            if (candidates.empty()) return std::nullopt;
+            return candidates[static_cast<std::size_t>(core::bounded(roll, candidates.size()))];
+        };
+
+        if (static_cast<double>(me.age) < p.household_minor_age)
+        {
+            const auto live = role_ids({relation::father, relation::mother}, true);
+            if (live.empty())
+            {
+                out.type = household_type::other;
+                return out;
+            }
+            // A parent with an ongoing partner who is not the other parent.
+            std::vector<std::size_t> stepped;
+            std::optional<std::size_t> step_of_chosen;
+            for (const auto q : live)
+            {
+                for (const auto s : role_ids({relation::stepfather, relation::stepmother}, true))
+                {
+                    if (ongoing(q, s)) stepped.push_back(q);
+                }
+            }
+            const auto is_mother = [&](std::size_t q) { return f.members[q].role == relation::mother; };
+            const auto keep_one = [&](const std::vector<std::size_t>& both)
+            {
+                const bool mother_first = core::bernoulli(roll, p.mother_custody_share);
+                for (const auto q : both)
+                {
+                    if (is_mother(q) == mother_first) return q;
+                }
+                return both.front();
+            };
+            std::vector<std::size_t> chosen;
+            if (!stepped.empty())
+            {
+                const auto q = stepped.size() == 2 ? keep_one(stepped) : stepped.front();
+                chosen.push_back(q);
+                for (const auto s : role_ids({relation::stepfather, relation::stepmother}, true))
+                {
+                    if (ongoing(q, s)) step_of_chosen = s;
+                }
+            }
+            else if (live.size() == 2 && core::bernoulli(roll, pct(row.single_parent)))
+            {
+                chosen.push_back(keep_one(live));
+            }
+            else
+            {
+                chosen = live;
+            }
+            for (const auto q : chosen) add(q);
+            if (step_of_chosen) add(*step_of_chosen);
+            const std::size_t adults = out.members.size() - 1;
+            add_siblings(chosen);
+            out.type = adults >= 2 ? household_type::nuclear : household_type::single_parent;
+            if (core::bernoulli(roll, pct(row.multi_generation)))
+            {
+                std::vector<std::size_t> grand;
+                for (const auto g : role_ids({relation::paternal_grandfather, relation::paternal_grandmother,
+                                              relation::maternal_grandfather, relation::maternal_grandmother},
+                                             true))
+                {
+                    if (std::ranges::any_of(chosen, [&](std::size_t q) { return has_edge(edge_kind::parent_of, g, q); }))
+                        grand.push_back(g);
+                }
+                if (const auto g = pick(grand))
+                {
+                    add(*g);
+                    out.type = household_type::multi_generation;
+                }
+            }
+            return out;
+        }
+
+        // An adult: the ongoing partner, then the children under 18 the anchor lives with.
+        std::optional<std::size_t> partner;
+        for (const auto id : role_ids({relation::partner}, true))
+        {
+            if (ongoing(0, id)) partner = id;
+        }
+        std::map<std::int64_t, bool> keeps; // by the other parent: whether the anchor has the children
+        bool kids = false;
+        for (const auto id : role_ids({relation::child, relation::stepchild}, true))
+        {
+            if (!minor(id)) continue;
+            std::optional<std::size_t> other;
+            for (const auto& e : f.edges)
+            {
+                if (e.kind == edge_kind::parent_of && e.to == id && e.from != 0) other = e.from;
+            }
+            const bool step = f.members[id].role == relation::stepchild;
+            bool lives = false;
+            if (partner && other && *other == *partner)
+            {
+                lives = true;
+            }
+            else if (!step)
+            {
+                const std::int64_t key = other ? static_cast<std::int64_t>(*other) : -1;
+                auto it = keeps.find(key);
+                if (it == keeps.end())
+                {
+                    auto kr = roll.split("custody").split(static_cast<std::uint64_t>(key + 1));
+                    const double share = me.bio_sex == sex::female ? p.mother_custody_share : 1.0 - p.mother_custody_share;
+                    it = keeps.emplace(key, core::bernoulli(kr, share)).first;
+                }
+                lives = it->second;
+            }
+            if (lives)
+            {
+                add(id);
+                kids = true;
+            }
+        }
+        if (partner) add(*partner);
+
+        if (partner || kids)
+        {
+            out.type = !kids ? household_type::couple : (partner ? household_type::nuclear : household_type::single_parent);
+            if (core::bernoulli(roll, pct(row.multi_generation)))
+            {
+                if (const auto g = pick(role_ids({relation::father, relation::mother}, true)))
+                {
+                    add(*g);
+                    out.type = household_type::multi_generation;
+                }
+            }
+            return out;
+        }
+
+        const auto parents = role_ids({relation::father, relation::mother}, true);
+        if (!parents.empty() && static_cast<double>(me.age) < p.young_adult_home_age &&
+            core::bernoulli(roll, p.young_adult_home_share))
+        {
+            for (const auto q : parents) add(q);
+            add_siblings(parents);
+            out.type = household_type::with_parents;
+            return out;
+        }
+        out.type = core::bernoulli(roll, pct(row.one_person * p.one_person_scale)) ? household_type::one_person
+                                                                                   : household_type::other;
+        return out;
+    }
+
     // The anchor's partners, in order. Whether the anchor ever has one comes
     // from the share still never married at 45 to 49; the first union begins
     // around the mean age at first marriage; the partner is of the other sex
@@ -2842,6 +3261,19 @@ class relg
                 nm[i] = names.get_parent_name(*nm.at(static_cast<std::size_t>(m.name_child)), gender_of(m.life.s),
                                               seed_of(m.key));
                 break;
+            case relation::stepfather:
+            case relation::stepmother:
+            {
+                nm[i] = full(m.life.s, m.key);
+                auto married = rng.split(m.key + ".married");
+                const auto parent = static_cast<std::size_t>(m.name_child);
+                if (raw[parent].life.s == sex::male && m.life.s == sex::female &&
+                    core::bernoulli(married, _model.params.married_name_share))
+                {
+                    nm[i] = names.get_married_name(*nm[i], *nm.at(parent));
+                }
+                break;
+            }
             case relation::partner:
             {
                 nm[i] = full(m.life.s, m.key);

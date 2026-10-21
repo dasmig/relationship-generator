@@ -102,6 +102,8 @@ request.up = 2;           // generations above: 0 none, 1 parents, 2 grandparent
 request.down = 2;         // generations below: 0 none, 1 children, 2 grandchildren too
 request.siblings = true;  // brothers, sisters and half-siblings (needs up >= 1)
 request.partners = true;  // the partners, current and former
+request.stepparents = false; // also the partners of a parent who are not the other parent (needs up >= 1)
+request.home = false;     // also who the anchor lives with (family::home)
 request.names = true;     // give everyone a name
 request.name_culture = dasmig::ng::to_culture(L"es"); // names of another culture than the country's
 request.weighted = true;  // draw an omitted country by population (false: uniformly)
@@ -112,6 +114,7 @@ request.reference_date = {std::chrono::year{2023}, std::chrono::July, std::chron
 - The anchor is always alive. An `age` outside 0 to 122, a `birth` after the reference date or one that makes the anchor older than 122, or an unknown country code throws `std::invalid_argument`.
 - `reference_date` defaults to 1 July 2023, the date of the UN estimates the data comes from. The age pyramid and life expectancy are those of 2023 whatever the date, so a date far from it gives families that are valid in themselves but whose demography is today's.
 - With `partners = false` the partners are left out but the children remain (their other parent is not listed). Stepchildren need `partners = true` and `down >= 1`.
+- `stepparents` and `home` are off by default; with them off a call gives exactly the family it gave before they existed. Turned on, they add to the family and change nothing else: stepparents take the last member ids, and the household is drawn after everything else from a stream of its own.
 - Choices are never kept on the generator: one call cannot change the next.
 
 ## Reading a Family
@@ -125,7 +128,8 @@ for (const auto& e : family.edges)
     {
     case dasmig::edge_kind::parent_of:  // e.from is a parent of e.to; e.genetic is false for adoption
     case dasmig::edge_kind::sibling_of: // they share a parent; e.from is the older; e.full if both are shared
-    case dasmig::edge_kind::partner_of: // e.from is the anchor; e.start, e.end (years), e.ended
+    case dasmig::edge_kind::partner_of: // e.from is the anchor (a parent, for a stepparent); e.start, e.end (years), e.ended
+    case dasmig::edge_kind::step_parent_of: // e.from is a stepfather or stepmother of e.to (the anchor)
         break;
     }
 }
@@ -133,6 +137,15 @@ for (const auto& e : family.edges)
 
 - Siblings are linked through any shared parent, so half-siblings, stepchildren and a person's children by different unions need no special case: `full` is true when both parents are shared. A parent who is not a member (the other parent of a half-sibling, a grandchild's other parent) is left out of the edges.
 - Each kind of member is numbered oldest first.
+- **Stepparents** (`stepparents = true`, roles `stepfather` and `stepmother`, `family::stepparents()`) are a parent's partner who is not the anchor's other parent: a `partner_of` edge from the parent to the stepparent (with its start year, end year and how it ended) and a `step_parent_of` edge from the stepparent to the anchor. The union began a year or more after the anchor's birth, so a stepparent joined a child's life; it may have ended by separation or a death. Their other children are not members.
+
+## Where the Anchor Lives
+
+`request.home = true` sets `family::home`, a `household` with a `type` (`one_person`, `couple`, `nuclear`, `single_parent`, `with_parents`, `multi_generation` or `other`) and the `members` who live with the anchor at the reference date: ids from the family, the anchor first, all alive. It is drawn from the members the family holds, so a family made with `up = 0` leaves a child with no parent to live with (type `other`), and one made with `partners = false` or `down = 0` has no partner or children to live with.
+
+- **A child** (under 18) lives with a living parent. A parent with an ongoing new partner (a stepparent) lives with that partner and takes the child; otherwise two living parents live together unless the country's share of single-parent households (`single_parent`) draws a lone parent, the mother with `mother_custody_share`. Younger brothers and sisters of those parents come along, and, with the country's share of three-generation households (`multi_generation`), a grandparent. With no parent alive the type is `other`.
+- **An adult** lives with an ongoing partner and the children under 18 of that union, or of the partner's. After a separation the children stay with the anchor by `mother_custody_share` (or its complement for a father). With neither, an adult under 30 may live with their parents, and others live alone by the country's share of one-person households scaled to people (`one_person_scale`), or with people the family does not hold (`other`). With the multi-generation share, a living parent joins a partnered or lone-parent household.
+- The shares come from `households.tsv` (UN DESA), falling back to the subregion and then the world; the constants are in `parameters.tsv` and are curated.
 - Twins are full siblings born on the same day; each has `twin` set.
 - `family::country_code`, `reference_date`, `fertility_source` and `union_source` say where the figures came from (the country's own row, its subregion's median or the world's).
 

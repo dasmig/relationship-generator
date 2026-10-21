@@ -16,7 +16,7 @@ inline constexpr std::array<std::string_view, 1> file_0{
     std::string_view{
         "subregion\tcountries\ttfr\tmac\tpasfr_10_14\tpasfr_15_19\tpasfr_20_24\tpasfr_25_29\tpasfr_30_34\tpasfr_35_39\tpasfr_40_44\tpasfr_45_49\ttfr_1950\ttfr_1955\ttfr_1960\ttfr_1965\ttfr_1970\ttfr_1975\ttfr_1980\ttfr_1985\ttfr_1990\ttfr_1995\ttfr_2000\ttfr_2005\ttfr_2010\ttfr_2015\ttfr_2020\tsmam_m\tsmam_f\tnever_m_45_49\tnever_f_45_49\tdivorced_m_45_49\tdivorced_f_45_49\tsize\tone_person\tsingle_parent\tmulti_generation\n"
         "World\t235\t1.9737\t29.1604\t0.0671\t6.2183\t21.7062\t26.1872\t23.017\t14.5259\t4.6786\t0.3901\t5.813\t6.0031\t6.0686\t5.9604\t5.4524\t4.6866\t4.0345\t3.711\t3.268\t2.8638\t2.5764\t2.4196\t2.256\t2.2085\t2.0302\t28.6\t24.85\t9.06\t7.41\t4.17\t7.675\t3.61\t13.785\t9.17\t32.71\n"
-        "Australia and New Zealand\t2\t1.6526\t31.0263\t0.0175\t2.6463\t12.9389\t25.842\t33.5459\t20.0943\t4.585\t0.3302\t3.3072\t3.5765\t3.8469\t3.2581\t3.014\t2.282\t1.9664\t1.9144\t2.0375\t1.9017\t1.8709\t1.9052\t2.0569\t1.8922\t1.6112\t31.6\t30.2\t19.14\t15.08\t16.32\t20.77\t2.575\t22.34\t9.075\t\n"
+        "Australia and New Zealand\t2\t1.6526\t31.0263\t0.0175\t2.6463\t12.9389\t25.842\t33.5459\t20.0943\t4.585\t0.3302\t3.3072\t3.5765\t3.8469\t3.2581\t3.014\t2.282\t1.9664\t1.9144\t2.0375\t1.9017\t1.8709\t1.9052\t2.0569\t1.8922\t1.6112\t31.6\t30.2\t19.14\t15.08\t16.32\t20.77\t2.575\t22.34\t9.075\t6\n"
         "Caribbean\t28\t1.4855\t28.7109\t0.0766\t8.2796\t23.5021\t25.5017\t22.5263\t14.212\t4.332\t0.1839\t5.221\t5.326\t5.2768\t5.1813\t4.4958\t3.3386\t2.8829\t2.5805\t2.3692\t2.2959\t2.0933\t1.888\t1.8177\t1.6667\t1.5527\t31.7\t28.2\t32.72\t27.39\t6.9\t9.32\t2.78\t26.445\t15.045\t31.58\n"
         "Central America\t7\t2.1192\t27.2493\t0.4182\t14.7239\t26.6634\t24.528\t18.7168\t11.1039\t3.4349\t0.2319\t6.69\t6.6\t6.7118\t6.6361\t6.2986\t6.2784\t5.8486\t4.9971\t4.5963\t3.7752\t3.1196\t2.7646\t2.5866\t2.4344\t2.1841\t25\t21.2\t10.29\t7.41\t5.93\t19.84\t3.87\t10.37\t12.58\t36.14\n"
         "Central Asia\t5\t3.0124\t27.8566\t0.0019\t4.8765\t31.2151\t30.3002\t21.127\t9.0903\t2.06\t0.0955\t5.1729\t5.6777\t6.2355\t6.7425\t6.3132\t5.9179\t5.0386\t4.6907\t4.1217\t3.4914\t2.6961\t2.6448\t2.8477\t3.0328\t3.0623\t24.85\t22.4\t0.645\t1.57\t3.1\t9.06\t4.79\t4.88\t7.2\t56.45\n"
@@ -39,8 +39,8 @@ inline constexpr std::array<std::string_view, 1> file_0{
         "Southern Europe\t9\t1.2131\t31.9339\t0.0264\t2.3236\t8.9004\t23.6278\t34.8124\t22.9384\t5.9596\t0.6526\t2.6815\t2.5072\t2.8077\t2.7155\t2.787\t2.4189\t2.2121\t1.7294\t1.4663\t1.3853\t1.4039\t1.3575\t1.4337\t1.328\t1.2418\t32\t29.15\t15.515\t10.085\t6.615\t9.77\t2.585\t22.61\t8.38\t28.7\n"
         "Western Africa\t17\t4.1857\t29.1245\t0.2837\t10.4156\t21.945\t23.1586\t20.5579\t14.5259\t6.7371\t1.827\t6.353\t6.334\t6.3636\t6.6048\t6.6854\t6.7713\t6.8473\t6.6164\t6.4588\t6.1732\t5.7863\t5.5192\t5.3269\t4.9697\t4.3863\t27.9\t22.15\t2.41\t1.93\t2.1\t4.4\t5.77\t6.64\t7.2\t30.81\n"
         "Western Asia\t17\t2.2395\t29.774\t0.0066\t3.7046\t20.7805\t29.8398\t25.3451\t14.9423\t4.5409\t0.5325\t6.5442\t6.5384\t6.5309\t7.0205\t6.5189\t6.0594\t5.329\t4.6419\t4.2298\t3.2783\t2.9212\t2.731\t2.256\t2.3823\t2.27\t27.9\t25.3\t3.61\t6.8\t1.14\t3.7\t4.72\t6.485\t5.78\t41.04\n"
-        "Western Europe\t8\t1.4373\t31.6825\t0.0106\t1.1996\t9.0908\t26.8505\t37.0453\t20.6526\t4.7259\t0.3575\t2.5555\t2.5399\t2.6339\t2.636\t2.1783\t1.7072\t1.6443\t1.5068\t1.6082\t1.5488\t1.6921\t1.6681\t1.7044\t1.5966\t1.5382\t32.8\t30.55\t20.65\t15.37\t11.665\t15.41\t2.22\t36.055\t8.33\t\n"
-        , 6585},
+        "Western Europe\t8\t1.4373\t31.6825\t0.0106\t1.1996\t9.0908\t26.8505\t37.0453\t20.6526\t4.7259\t0.3575\t2.5555\t2.5399\t2.6339\t2.636\t2.1783\t1.7072\t1.6443\t1.5068\t1.6082\t1.5488\t1.6921\t1.6681\t1.7044\t1.5966\t1.5382\t32.8\t30.55\t20.65\t15.37\t11.665\t15.41\t2.22\t36.055\t8.33\t5\n"
+        , 6587},
 };
 
 // lite/fertility.tsv
@@ -464,7 +464,14 @@ inline constexpr std::array<std::string_view, 1> file_3{
         "union_early_max\t3\tMost years by which a union begins before the country's mean age at first marriage: half the years it is above 21 (curated; cohabitation precedes marriage where marriage is late).\n"
         "twin_share\t0.012\tChance that a birth is a twin birth: another child born the same day (curated; about 12 in 1000 deliveries worldwide, 6 to 9 in East Asia and 16 to 18 in Africa).\n"
         "stepchild_factor\t0.6\tChance that a partner has children from an earlier union, as a fraction of the partner's divorced share among the ever married (curated).\n"
-        , 4155},
+        "stepparent_factor\t1\tScale of the chance that a parent has a new partner while the anchor is a child, against the parent's divorced share among the ever married times remarry_share (curated).\n"
+        "stepparent_start_mean\t6\tMean years, after the first year of the anchor's life, before a parent's new union begins (curated; exponential).\n"
+        "mother_custody_share\t0.8\tChance that a child lives with its mother rather than its father after the parents separate (curated; about 80% of lone-parent households are headed by a mother worldwide).\n"
+        "household_minor_age\t18\tAge below which a person is a child who lives with its parents (curated).\n"
+        "young_adult_home_age\t30\tAge below which an adult with no partner or child may live with a parent (curated).\n"
+        "young_adult_home_share\t0.5\tChance that such an adult does (curated; about half of unpartnered adults in their twenties live with a parent in Europe and more in Asia and Africa).\n"
+        "one_person_scale\t3\tPeople who live alone are about this many times the one-person households' share, among adults with no partner or child at home: such households are a small part of all of them but of few people (curated).\n"
+        , 5290},
 };
 
 // lite/regions.tsv
