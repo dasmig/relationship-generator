@@ -157,7 +157,10 @@ struct family_request
     /// @brief Whether to include the partners of the anchor's parents who are
     ///        not the other parent (stepfathers and stepmothers), who joined
     ///        a parent while the anchor was a child. Off by default, and then
-    ///        nothing else about the family changes. Needs `up >= 1`.
+    ///        nothing else about the family changes. Needs `up >= 1`. With
+    ///        `siblings`, it also brings the stepparents' children by an
+    ///        earlier union (stepsiblings), and the half-siblings born during
+    ///        the union have the stepparent as their other parent.
     bool stepparents{false};
     /// @brief Whether to draw who the anchor lives with at the reference date
     ///        (`family::home`). Off by default, and then nothing else about
@@ -189,7 +192,8 @@ enum class relation : std::uint8_t
     grandchild,           ///< A child of one of the anchor's children.
     stepchild,            ///< A child of a partner by an earlier union, not the anchor's.
     stepfather,           ///< A man who is, or was, a parent's partner while the anchor was a child.
-    stepmother            ///< A woman who is, or was, a parent's partner while the anchor was a child.
+    stepmother,           ///< A woman who is, or was, a parent's partner while the anchor was a child.
+    stepsibling           ///< A stepparent's child by an earlier union, not a parent's.
 };
 
 /// @brief The name of a relation as it appears in JSON (`paternal_grandfather`).
@@ -214,6 +218,7 @@ enum class relation : std::uint8_t
     case relation::stepchild: return "stepchild";
     case relation::stepfather: return "stepfather";
     case relation::stepmother: return "stepmother";
+    case relation::stepsibling: return "stepsibling";
     }
     return "unknown";
 }
@@ -387,8 +392,18 @@ class family
     [[nodiscard]] std::vector<person> siblings() const { return with_role(relation::sibling); }
 
     /// @brief The anchor's half-siblings, oldest first.
+    ///
+    /// The children of a parent and a stepparent take ids after the
+    /// stepparents (see `family_request::stepparents`), so ids are not in
+    /// birth order when there are some.
     /// @return The half-siblings.
-    [[nodiscard]] std::vector<person> half_siblings() const { return with_role(relation::half_sibling); }
+    [[nodiscard]] std::vector<person> half_siblings() const
+    {
+        auto out = with_role(relation::half_sibling);
+        std::ranges::stable_sort(out, [](const person& x, const person& y)
+                                 { return std::chrono::sys_days{x.birth} < std::chrono::sys_days{y.birth}; });
+        return out;
+    }
 
     /// @brief The anchor's grandparents.
     /// @return Paternal then maternal, father's side first.
@@ -428,6 +443,10 @@ class family
         for (auto& m : with_role(relation::stepmother)) out.push_back(std::move(m));
         return out;
     }
+
+    /// @brief The stepparents' children by an earlier union.
+    /// @return The stepsiblings, oldest first (see `family_request::stepparents`).
+    [[nodiscard]] std::vector<person> stepsiblings() const { return with_role(relation::stepsibling); }
 
     /// @brief The union with a partner.
     /// @param partner_id The partner's id.
@@ -710,12 +729,21 @@ class relg
         push_(raw, relation::anchor, anchor_life, "anchor");
         raw[0].fixed = spec.name;
 
+        // The birth of the last child the parents had together: a stepparent
+        // comes after it.
+        double together_until = anchor.birth_day;
         if (request.up >= 1)
         {
             const known_parents known{spec.father ? &*spec.father : nullptr, spec.mother ? &*spec.mother : nullptr};
             const bool known_siblings = spec.siblings.has_value();
+            // Stepparents need the full siblings even when they are not asked for.
             auto lin = draw_lineage_(cm, anchor.country, call.split("parents"), anchor.birth_day, ref_day,
-                                     request.siblings && !known_siblings, known);
+                                     (request.siblings || request.stepparents) && !known_siblings, known);
+            if (!request.siblings)
+            {
+                for (const auto& s : lin.siblings) together_until = std::max(together_until, s.birth);
+                lin.siblings.clear();
+            }
             struct half_rec
             {
                 life l;
@@ -748,6 +776,7 @@ class relg
             // Siblings take ids oldest first; each was drawn from a stream of its
             // own, so the order does not change what is drawn.
             std::ranges::stable_sort(lin.siblings, [](const life& x, const life& y) { return x.birth < y.birth; });
+            for (const auto& s : lin.siblings) together_until = std::max(together_until, s.birth);
             const auto father = push_(raw, relation::father, lin.father, "father");
             const auto mother = push_(raw, relation::mother, lin.mother, "mother");
             if (spec.father) raw[father].fixed = spec.father->name;
@@ -963,8 +992,8 @@ class relg
             } sides[] = {{1, "father"}, {2, "mother"}};
             for (const auto& side : sides)
             {
-                const auto rec = draw_stepparent_(cm, anchor.country, raw.at(side.parent).life, anchor.birth_day, ref_day,
-                                                  sp.split(side.label));
+                const auto rec = draw_stepparent_(cm, anchor.country, raw.at(side.parent).life, anchor.birth_day,
+                                                  together_until, ref_day, sp.split(side.label));
                 if (!rec) continue;
                 const auto id = push_(raw, rec->partner.s == sex::male ? relation::stepfather : relation::stepmother,
                                       rec->partner, "stepparent." + std::string{side.label});
@@ -972,6 +1001,72 @@ class relg
                 steps.push_back(*rec);
                 step_ids.push_back(id);
                 step_parents.push_back(side.parent);
+            }
+        }
+
+        // The children a parent had with a stepparent of the other sex: the
+        // half-siblings already drawn who were born during the union, and more
+        // up to the union's own fertility (a later union's). Then the
+        // stepparents' own children by an earlier union, the stepsiblings.
+        // Both take the ids after the stepparents, each oldest first.
+        if (request.siblings && !steps.empty())
+        {
+            const auto& p = _model.params;
+            const auto sib = call.split("stepsiblings");
+            std::vector<std::pair<std::size_t, life>> joint;    // step index, child
+            std::vector<std::pair<std::size_t, life>> stepsibs; // step index, child
+            for (std::size_t k = 0; k < steps.size(); ++k)
+            {
+                const auto parent = step_parents[k];
+                const auto sp = step_ids[k];
+                const auto rk = sib.split(raw.at(sp).key);
+                const union_rec u{.partner = steps[k].partner, .start = steps[k].start};
+                for (const auto& c : draw_stepchildren_(cm, anchor.country, u, ref_day, rk)) stepsibs.emplace_back(k, c);
+                if (steps[k].partner.s == raw.at(parent).life.s) continue;
+
+                const int tied = tie_half_siblings_(raw, parent, sp, steps[k], p);
+                const double mean = (tfr_at_(cm.fertility, 1970.0 + (steps[k].start / year_days_)) + p.union_fertility_offset) *
+                                    p.union_fertility * p.later_union_factor;
+                auto count_rng = rk.split("count");
+                const int n = std::min(family_size_(count_rng, mean), static_cast<int>(p.max_children));
+                const bool via_father = raw.at(parent).life.s == sex::male;
+                const auto mother_id = static_cast<std::int64_t>(via_father ? sp : parent);
+                std::vector<double> births; // the mother's, so far
+                for (const auto& m : raw)
+                {
+                    if (m.parents[1] == mother_id) births.push_back(m.life.birth);
+                }
+                for (const auto& [j, c] : stepsibs)
+                {
+                    if (j == k && via_father) births.push_back(c.birth);
+                }
+                const life& mother = via_father ? steps[k].partner : raw.at(parent).life;
+                const life& father = via_father ? raw.at(parent).life : steps[k].partner;
+                for (const auto& c : place_union_births_(cm, anchor.country, mother, father, steps[k].start,
+                                                         steps[k].end, tied, n, births, rk.split("joint")))
+                {
+                    joint.emplace_back(k, c.life);
+                }
+            }
+            std::ranges::stable_sort(joint, [](const auto& x, const auto& y) { return x.second.birth < y.second.birth; });
+            std::ranges::stable_sort(stepsibs, [](const auto& x, const auto& y) { return x.second.birth < y.second.birth; });
+            for (const auto& [k, c] : joint)
+            {
+                const auto parent = static_cast<std::int64_t>(step_parents[k]);
+                const auto sp = static_cast<std::int64_t>(step_ids[k]);
+                const auto id = push_(raw, relation::half_sibling, c,
+                                      "joint." + raw.at(step_ids[k]).key + "." + std::to_string(c.index));
+                raw[id].parents = raw.at(step_parents[k]).life.s == sex::male ? std::array<std::int64_t, 2>{parent, sp}
+                                                                               : std::array<std::int64_t, 2>{sp, parent};
+            }
+            for (const auto& [k, c] : stepsibs)
+            {
+                const auto sp = step_ids[k];
+                const auto token = unlisted_ + 600 + static_cast<std::int64_t>(k);
+                const auto id = push_(raw, relation::stepsibling, c, "stepsib." + raw.at(sp).key + "." + std::to_string(c.index));
+                raw[id].parents = raw.at(sp).life.s == sex::male
+                                      ? std::array<std::int64_t, 2>{static_cast<std::int64_t>(sp), token}
+                                      : std::array<std::int64_t, 2>{token, static_cast<std::int64_t>(sp)};
             }
         }
 
@@ -2696,13 +2791,15 @@ class relg
     // A parent's partner who is not the anchor's other parent. The chance is
     // the parent's divorced share among the ever married, times
     // `remarry_share` and `stepparent_factor`; the union begins a year or
-    // more after the anchor's birth (an exponential spell with mean
-    // `stepparent_start_mean`) while the parent is alive, and the partner is
-    // drawn as for the anchor's own unions, of the other sex unless the union
-    // is same-sex. It ends in a separation, or at the first death.
+    // more after the last child the parents had together (`together_until`,
+    // the anchor or a younger full sibling; an exponential spell with mean
+    // `stepparent_start_mean`) while the parent is alive and the anchor is
+    // under `household_minor_age`, and the partner is drawn as for the
+    // anchor's own unions, of the other sex unless the union is same-sex. It
+    // ends in a separation, or at the first death.
     [[nodiscard]] std::optional<step_rec> draw_stepparent_(const country_model& cm, const std::string& country,
-                                                           const life& parent, double child_birth, double ref_day,
-                                                           const core::rng& r) const
+                                                           const life& parent, double child_birth, double together_until,
+                                                           double ref_day, const core::rng& r) const
     {
         const auto& p = _model.params;
         const bool male = parent.s == sex::male;
@@ -2712,10 +2809,14 @@ class relg
         const double chance = clamp_(p.stepparent_factor * p_divorce * p.remarry_share, 0.0, 0.9);
         auto roll = r.split("roll");
         if (!core::bernoulli(roll, chance)) return std::nullopt;
-        const double start = forward_(child_birth, 1.0 + exponential_(roll, p.stepparent_start_mean));
+        const double start = forward_(together_until, 1.0 + exponential_(roll, p.stepparent_start_mean));
         const double parent_death = forward_(parent.birth, parent.lifespan);
         const double parent_age = (start - parent.birth) / year_days_;
-        if (start >= std::min(parent_death, ref_day) || parent_age < p.min_union_age) return std::nullopt;
+        if (start >= std::min(parent_death, ref_day) || parent_age < p.min_union_age ||
+            start >= forward_(child_birth, p.household_minor_age))
+        {
+            return std::nullopt;
+        }
 
         step_rec out;
         out.start = start;
@@ -2746,13 +2847,57 @@ class relg
         return out;
     }
 
+    // The half-siblings through `parent` who were born during the union with a
+    // stepparent of the other sex take the stepparent as their other parent,
+    // where the stepparent could be one: a stepmother between
+    // `min_mother_age` and `max_mother_age`, alive at the birth and
+    // `birth_spacing` from her other births; a stepfather between
+    // `min_father_age` and `max_father_age`, alive at the conception. Nothing
+    // is drawn.
+    // @return How many were tied, twins counting once.
+    static int tie_half_siblings_(std::vector<raw_member>& raw, std::size_t parent, std::size_t stepparent,
+                                  const step_rec& u, const parameters& p)
+    {
+        const life sp = raw.at(stepparent).life;
+        const bool via_father = raw.at(parent).life.s == sex::male;
+        const std::size_t own = via_father ? 0 : 1;
+        const auto parent_id = static_cast<std::int64_t>(parent);
+        const double death = forward_(sp.birth, sp.lifespan);
+        std::vector<double> births; // the tied ones'
+        for (auto& m : raw)
+        {
+            if (m.role != relation::half_sibling || m.parents.at(own) != parent_id) continue;
+            const double b = m.life.birth;
+            if (b < u.start || b > u.end) continue;
+            const double age = (b - sp.birth) / year_days_;
+            if (via_father)
+            {
+                if (age < p.min_mother_age || age > p.max_mother_age || b > death) continue;
+                if (std::ranges::any_of(births, [&](double e)
+                                        { return e != b && std::abs(b - e) < p.birth_spacing * year_days_; }))
+                {
+                    continue;
+                }
+            }
+            else if (age < p.min_father_age || age > p.max_father_age || age - p.conception_lead >= sp.lifespan)
+            {
+                continue;
+            }
+            m.parents.at(1 - own) = static_cast<std::int64_t>(stepparent);
+            if (std::ranges::find(births, b) == births.end()) births.push_back(b);
+        }
+        return static_cast<int>(births.size());
+    }
+
     // Who the anchor lives with at the reference date, from the members the
     // family holds (all of them alive).
     //
     // A child lives with its living parents, as a lone parent's child with
     // the share of lone-parent households (`single_parent`), or with the
     // parent who has a partner (a stepparent) and that partner; younger
-    // brothers and sisters of those parents come along, and with the share of
+    // brothers and sisters of those parents come along (and the stepparent's
+    // own children under 18, with the custody share of the stepparent's
+    // sex, `mother_custody_share`), and with the share of
     // three-generation households (`multi_generation`) a grandparent. An adult
     // lives with an ongoing partner and the children under 18 of that union
     // (and of the partner's) and, after a separation, with the children the
@@ -2859,6 +3004,22 @@ class relg
             if (step_of_chosen) add(*step_of_chosen);
             const std::size_t adults = out.members.size() - 1;
             add_siblings(chosen);
+            // The stepparent's own children under 18, if the stepparent kept them.
+            if (step_of_chosen)
+            {
+                auto kept = r.split("stepsiblings");
+                const double share = f.members[*step_of_chosen].bio_sex == sex::female ? p.mother_custody_share
+                                                                                       : 1.0 - p.mother_custody_share;
+                std::vector<std::size_t> theirs;
+                for (const auto id : role_ids({relation::stepsibling}, true))
+                {
+                    if (minor(id) && has_edge(edge_kind::parent_of, *step_of_chosen, id)) theirs.push_back(id);
+                }
+                if (!theirs.empty() && core::bernoulli(kept, share))
+                {
+                    for (const auto id : theirs) add(id);
+                }
+            }
             out.type = adults >= 2 ? household_type::nuclear : household_type::single_parent;
             if (core::bernoulli(roll, pct(row.multi_generation)))
             {
@@ -3057,35 +3218,51 @@ class relg
             std::vector<double> local_births;
             std::vector<double>& births = a.s == sex::female ? anchor_births : local_births;
             const int n = std::min(family_size_(count_rng, mean), static_cast<int>(p.max_children));
-            for (int i = 0; i < n; ++i)
+            for (auto& c : place_union_births_(cm, country, mother, father, u.start, window_end, 0, n, births, uj))
             {
-                auto ci = uj.split("child").split(static_cast<std::uint64_t>(i));
-                for (int attempt = 0; attempt < 24; ++attempt)
+                c.union_index = static_cast<int>(j);
+                out.push_back(c);
+            }
+        }
+        return out;
+    }
+
+    // Children `first` to `last - 1` of a man and a woman, each placed by the
+    // mother's age at the birth between `from` and `to`, while both could be
+    // parents, and `birth_spacing` from the mother's other `births` (which
+    // gains theirs); a child no age fits is left out.
+    [[nodiscard]] std::vector<child_rec> place_union_births_(const country_model& cm, const std::string& country,
+                                                             const life& mother, const life& father, double from,
+                                                             double to, int first, int last,
+                                                             std::vector<double>& births, const core::rng& r) const
+    {
+        const auto& p = _model.params;
+        std::vector<child_rec> out;
+        for (int i = first; i < last; ++i)
+        {
+            auto ci = r.split("child").split(static_cast<std::uint64_t>(i));
+            for (int attempt = 0; attempt < 24; ++attempt)
+            {
+                const double am = draw_mother_age_(cm.fertility, ci);
+                const double birth = forward_(mother.birth, am);
+                if (birth < from || birth > to || am >= mother.lifespan) continue;
+                const double fa = (birth - father.birth) / year_days_;
+                if (fa < p.min_father_age || fa > p.max_father_age || fa - p.conception_lead >= father.lifespan)
                 {
-                    const double am = draw_mother_age_(cm.fertility, ci);
-                    const double birth = forward_(mother.birth, am);
-                    if (birth < u.start || birth > window_end || am >= mother.lifespan) continue;
-                    const double fa = (birth - father.birth) / year_days_;
-                    if (fa < p.min_father_age || fa > p.max_father_age || fa - p.conception_lead >= father.lifespan)
-                    {
-                        continue;
-                    }
-                    if (std::ranges::any_of(births, [&](double e)
-                                            { return std::abs(birth - e) < p.birth_spacing * year_days_; }))
-                    {
-                        continue;
-                    }
-                    births.push_back(birth);
-                    const sex s = core::bernoulli(ci, p.male_birth_share) ? sex::male : sex::female;
-                    auto l = draw_life_(ci.split("life"), country, s, birth, 0.0);
-                    l.index = i;
-                    out.push_back({.life = l, .union_index = static_cast<int>(j), .genetic = true});
-                    if (const auto t = twin_of_(ci, country, l))
-                    {
-                        out.push_back({.life = *t, .union_index = static_cast<int>(j), .genetic = true});
-                    }
-                    break;
+                    continue;
                 }
+                if (std::ranges::any_of(births, [&](double e)
+                                        { return std::abs(birth - e) < p.birth_spacing * year_days_; }))
+                {
+                    continue;
+                }
+                births.push_back(birth);
+                const sex s = core::bernoulli(ci, p.male_birth_share) ? sex::male : sex::female;
+                auto l = draw_life_(ci.split("life"), country, s, birth, 0.0);
+                l.index = i;
+                out.push_back({.life = l, .genetic = true});
+                if (const auto t = twin_of_(ci, country, l)) out.push_back({.life = *t, .genetic = true});
+                break;
             }
         }
         return out;
@@ -3245,7 +3422,24 @@ class relg
                 nm[0] = full(raw[0].life.s, raw[0].key);
             }
         }
+        // The adults first, then the children, who may come before a parent
+        // (a half-sibling and a stepparent). Each name has its own stream, so
+        // the order changes no name.
+        const auto is_child = [](relation r)
+        {
+            return r == relation::sibling || r == relation::half_sibling || r == relation::child ||
+                   r == relation::grandchild || r == relation::stepchild || r == relation::stepsibling;
+        };
+        std::vector<std::size_t> order;
         for (std::size_t i = 1; i < raw.size(); ++i)
+        {
+            if (!is_child(raw[i].role)) order.push_back(i);
+        }
+        for (std::size_t i = 1; i < raw.size(); ++i)
+        {
+            if (is_child(raw[i].role)) order.push_back(i);
+        }
+        for (const auto i : order)
         {
             if (nm[i]) continue;
             const auto& m = raw[i];
@@ -3290,6 +3484,7 @@ class relg
             case relation::child:
             case relation::grandchild:
             case relation::stepchild:
+            case relation::stepsibling:
                 nm[i] = names.get_child_name(first_slot(m.parents[0]), slot(m.parents[1], sex::female),
                                              {.gender = gender_of(m.life.s)}, seed_of(m.key));
                 break;
