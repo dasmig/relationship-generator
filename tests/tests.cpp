@@ -261,7 +261,7 @@ static void check_family(const family& f)
     REQUIRE(f.anchor().alive);
 
     // Each kind of member is numbered oldest first.
-    for (const auto role : {relation::sibling, relation::half_sibling, relation::child, relation::grandchild})
+    for (const auto role : {relation::sibling, relation::child, relation::grandchild, relation::stepsibling})
     {
         const auto same = f.with_role(role);
         for (std::size_t i = 1; i < same.size(); ++i)
@@ -270,6 +270,10 @@ static void check_family(const family& f)
             REQUIRE(same[i - 1].id < same[i].id);
         }
     }
+    // Half-siblings too, but for the children of a parent and a stepparent,
+    // who come after the stepparents; half_siblings() is oldest first.
+    const auto halves = f.half_siblings();
+    for (std::size_t i = 1; i < halves.size(); ++i) REQUIRE(days(halves[i - 1].birth) <= days(halves[i].birth));
 
     std::map<std::size_t, std::vector<std::size_t>> parents_of;
     std::map<std::size_t, std::vector<std::int64_t>> births_of; // a mother's births, by day
@@ -324,11 +328,17 @@ static void check_family(const family& f)
 
     // Unions: begun when both were adults, ended by a separation while both
     // lived or by the partner's death, ongoing only while the partner is alive.
+    // A parent's union with a stepparent has tests of its own.
     for (const auto& e : f.edges)
     {
         if (e.kind != dasmig::edge_kind::partner_of) continue;
         const auto& partner = f.members.at(e.to);
-        REQUIRE(e.from == 0);
+        if (e.from != 0)
+        {
+            REQUIRE((f.members.at(e.from).role == relation::father || f.members.at(e.from).role == relation::mother));
+            REQUIRE((partner.role == relation::stepfather || partner.role == relation::stepmother));
+            continue;
+        }
         REQUIRE(*e.start - static_cast<int>(f.anchor().birth.year()) >= 15);
         REQUIRE(*e.start - static_cast<int>(partner.birth.year()) >= 15);
         REQUIRE(*e.start <= static_cast<int>(f.reference_date.year()));
@@ -355,7 +365,7 @@ static void check_family(const family& f)
     int previous_end = -10000;
     for (const auto& e : f.edges)
     {
-        if (e.kind != dasmig::edge_kind::partner_of) continue;
+        if (e.kind != dasmig::edge_kind::partner_of || e.from != 0) continue;
         REQUIRE(*e.start >= previous_end);
         previous_end = e.end ? *e.end : 10000;
     }
@@ -385,6 +395,10 @@ TEST_CASE("every family is consistent, in every country", "[property]")
         }
     }
     request.anchor = {};
+    for (int i = 0; i < 3000; ++i) check_family(gen.get_family(request, seed++));
+    // And with the stepfamily: stepparents, their children and the stepsiblings.
+    request.stepparents = true;
+    request.home = true;
     for (int i = 0; i < 3000; ++i) check_family(gen.get_family(request, seed++));
 }
 
@@ -1445,11 +1459,20 @@ TEST_CASE("stepparents are off by default and change no other member", "[steppar
         asked.stepparents = true;
         const auto f = gen.get_family(asked, seed);
         REQUIRE(f.members.size() >= plain.members.size());
-        // The stepparents take the last ids, so every other member keeps its id and its data.
+        // The stepparents (and their children) take the last ids, so every other
+        // member keeps its id and its data; a half-sibling who is a stepparent's
+        // child is named after the stepparent.
+        const auto stepparent_child = [&](std::size_t id)
+        {
+            return std::ranges::any_of(f.edges, [&](const dasmig::edge& e)
+                                       { return e.kind == dasmig::edge_kind::parent_of && e.to == id &&
+                                                (f.members[e.from].role == relation::stepfather ||
+                                                 f.members[e.from].role == relation::stepmother); });
+        };
         for (std::size_t i = 0; i < plain.members.size(); ++i)
         {
             REQUIRE(f.members[i].role == plain.members[i].role);
-            REQUIRE(f.members[i].name == plain.members[i].name);
+            if (!stepparent_child(i)) REQUIRE(f.members[i].name == plain.members[i].name);
             REQUIRE(f.members[i].birth == plain.members[i].birth);
         }
         if (!f.stepparents().empty()) ++with;
@@ -1549,6 +1572,225 @@ TEST_CASE("expanding a family with stepparents keeps the anchor's own unions", "
         REQUIRE(g.partners().size() == base.partners().size());
         REQUIRE(g.children().size() == base.children().size());
     }
+}
+
+// The parents of a member, by id.
+static std::vector<std::size_t> parents_of(const family& f, std::size_t id)
+{
+    std::vector<std::size_t> out;
+    for (const auto& e : f.edges)
+    {
+        if (e.kind == dasmig::edge_kind::parent_of && e.to == id) out.push_back(e.from);
+    }
+    return out;
+}
+
+static bool is_stepparent(const person& m)
+{
+    return m.role == relation::stepfather || m.role == relation::stepmother;
+}
+
+TEST_CASE("a stepparent joins after the parents' last child together, while the anchor is a child", "[stepparent]")
+{
+    const auto gen = make_loaded_generator();
+    for (const bool siblings : {true, false})
+    {
+        family_request request;
+        request.anchor.country_code = "US";
+        request.anchor.age = 40;
+        request.stepparents = true;
+        request.siblings = siblings;
+        request.names = false;
+        int found = 0;
+        for (std::uint64_t seed = 1; seed <= 1500; ++seed)
+        {
+            const auto f = gen.get_family(request, seed);
+            int last_together = static_cast<int>(f.anchor().birth.year());
+            for (const auto& s : f.siblings()) last_together = std::max(last_together, static_cast<int>(s.birth.year()));
+            for (const auto& s : f.stepparents())
+            {
+                ++found;
+                const auto link = *f.union_with(s.id);
+                REQUIRE(*link.start >= last_together);
+                REQUIRE(*link.start <= static_cast<int>(f.anchor().birth.year()) + 18);
+            }
+        }
+        REQUIRE(found > 100);
+    }
+    // Asking for siblings does not change the stepparents.
+    family_request request;
+    request.anchor.country_code = "DE";
+    request.stepparents = true;
+    request.down = 0;
+    request.partners = false;
+    for (std::uint64_t seed = 1; seed <= 300; ++seed)
+    {
+        auto lone = request;
+        lone.siblings = false;
+        const auto a = gen.get_family(request, seed).stepparents();
+        const auto b = gen.get_family(lone, seed).stepparents();
+        REQUIRE(a.size() == b.size());
+        for (std::size_t i = 0; i < a.size(); ++i)
+        {
+            REQUIRE(a[i].birth == b[i].birth);
+            REQUIRE(a[i].name == b[i].name);
+        }
+    }
+}
+
+TEST_CASE("a parent's children with a stepparent are the anchor's half-siblings", "[stepparent][half]")
+{
+    const auto gen = make_loaded_generator();
+    const auto share_with_joint = [&](const char* country)
+    {
+        family_request request;
+        request.anchor.country_code = country;
+        request.anchor.age = 40;
+        request.stepparents = true;
+        int unions = 0;
+        int with_joint = 0;
+        for (std::uint64_t seed = 1; seed <= 3000; ++seed)
+        {
+            const auto f = gen.get_family(request, seed);
+            for (const auto& s : f.stepparents())
+            {
+                const auto link = *f.union_with(s.id);
+                const auto parent = link.from;
+                if (s.bio_sex == f.members[parent].bio_sex) continue;
+                ++unions;
+                bool joint = false;
+                for (const auto& h : f.half_siblings())
+                {
+                    const auto ps = parents_of(f, h.id);
+                    if (std::ranges::find(ps, s.id) == ps.end()) continue;
+                    joint = true;
+                    // The parent and the stepparent, born while they were together.
+                    REQUIRE(ps.size() == 2);
+                    REQUIRE(std::ranges::find(ps, parent) != ps.end());
+                    REQUIRE(static_cast<int>(h.birth.year()) >= *link.start);
+                    if (link.end) REQUIRE(static_cast<int>(h.birth.year()) <= *link.end);
+                    REQUIRE_FALSE(h.name.empty());
+                    // Named after both: the stepfather's family name where children take the father's.
+                    if (s.role == relation::stepfather && std::string{country} == "US") REQUIRE(h.family == s.family);
+                }
+                with_joint += joint ? 1 : 0;
+            }
+            check_family(f);
+        }
+        REQUIRE(unions > 50);
+        return static_cast<double>(with_joint) / unions;
+    };
+    // About half of remarriages with stepchildren have a child together.
+    const double us = share_with_joint("US");
+    REQUIRE(us > 0.35);
+    REQUIRE(us < 0.7);
+    REQUIRE(share_with_joint("DE") > 0.25);
+}
+
+TEST_CASE("stepsiblings are a stepparent's children from before the union", "[stepparent][stepsibling]")
+{
+    const auto gen = make_loaded_generator();
+    family_request request;
+    request.anchor.country_code = "US";
+    request.anchor.age = 35;
+    request.stepparents = true;
+    int found = 0;
+    for (std::uint64_t seed = 1; seed <= 3000; ++seed)
+    {
+        const auto f = gen.get_family(request, seed);
+        const auto first_step = f.stepparents().empty() ? f.members.size() : f.stepparents().front().id;
+        for (const auto& s : f.stepsiblings())
+        {
+            ++found;
+            REQUIRE(s.id > first_step);
+            REQUIRE_FALSE(s.name.empty());
+            // One listed parent, a stepparent, and born before that union began.
+            const auto ps = parents_of(f, s.id);
+            REQUIRE(ps.size() == 1);
+            const auto& sp = f.members.at(ps.front());
+            REQUIRE(is_stepparent(sp));
+            REQUIRE(static_cast<int>(s.birth.year()) <= *f.union_with(sp.id)->start);
+            // Not the anchor's sibling, but a half-sibling of the stepparent's children with a parent.
+            for (const auto& e : f.edges)
+            {
+                if (e.kind != dasmig::edge_kind::sibling_of || (e.from != s.id && e.to != s.id)) continue;
+                const auto other = e.from == s.id ? e.to : e.from;
+                REQUIRE(other != 0);
+                if (f.members[other].role == relation::half_sibling) REQUIRE_FALSE(e.full);
+            }
+        }
+        check_family(f);
+    }
+    REQUIRE(found > 50);
+
+    // Not without stepparents, nor without siblings.
+    for (std::uint64_t seed = 1; seed <= 300; ++seed)
+    {
+        auto plain = request;
+        plain.stepparents = false;
+        REQUIRE(gen.get_family(plain, seed).stepsiblings().empty());
+        auto lone = request;
+        lone.siblings = false;
+        const auto f = gen.get_family(lone, seed);
+        REQUIRE(f.stepsiblings().empty());
+        REQUIRE(f.half_siblings().empty());
+    }
+}
+
+TEST_CASE("a child lives with a stepparent's children only in the stepparent's home", "[stepparent][household]")
+{
+    const auto gen = make_loaded_generator();
+    family_request request;
+    request.anchor.country_code = "US";
+    request.anchor.age = 12;
+    request.stepparents = true;
+    request.home = true;
+    request.names = false;
+    int together = 0;
+    for (std::uint64_t seed = 1; seed <= 4000; ++seed)
+    {
+        const auto f = gen.get_family(request, seed);
+        const auto in_home = [&](std::size_t id) { return std::ranges::find(f.home->members, id) != f.home->members.end(); };
+        for (const auto& s : f.stepsiblings())
+        {
+            if (!in_home(s.id)) continue;
+            ++together;
+            REQUIRE(s.age < 18);
+            REQUIRE(in_home(parents_of(f, s.id).front()));
+        }
+    }
+    REQUIRE(together > 5);
+}
+
+TEST_CASE("expanding a parent's child with a stepparent keeps both", "[stepparent][expand]")
+{
+    const auto gen = make_loaded_generator();
+    family_request request;
+    request.anchor.country_code = "US";
+    request.anchor.age = 30;
+    request.stepparents = true;
+    int expanded = 0;
+    for (std::uint64_t seed = 1; seed <= 800 && expanded < 20; ++seed)
+    {
+        const auto base = gen.get_family(request, seed);
+        for (const auto& h : base.half_siblings())
+        {
+            const auto ps = parents_of(base, h.id);
+            if (ps.size() != 2) continue;
+            ++expanded;
+            family_request around;
+            const auto g = gen.expand(base, h.id, around, 11);
+            REQUIRE(g.anchor().birth == h.birth);
+            REQUIRE(g.anchor().name == h.name);
+            std::set<std::chrono::sys_days> want;
+            for (const auto p : ps) want.insert(std::chrono::sys_days{base.members[p].birth});
+            std::set<std::chrono::sys_days> got;
+            for (const auto& p : g.parents()) got.insert(std::chrono::sys_days{p.birth});
+            REQUIRE(got == want);
+            break;
+        }
+    }
+    REQUIRE(expanded >= 10);
 }
 
 TEST_CASE("a household is off by default and changes nothing else", "[household]")
@@ -1711,5 +1953,5 @@ TEST_CASE("family batch with stepparents and households: known answer of 10,000 
     gen.for_each_family(request, {.count = 10000, .threads = 4}, 1,
                         [&](std::uint64_t, const family& item)
                         { hash = dasmig::core::hash_combine(hash, dasmig::core::fnv1a64(item.to_json())); });
-    REQUIRE(hash == 0xf1c9db3bd1993a70ULL);
+    REQUIRE(hash == 0x6a55d380c8f9ef39ULL);
 }

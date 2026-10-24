@@ -19,7 +19,7 @@ Believable families around a person: parents and grandparents, siblings and half
 
 - **Demography, Not Templates**. The mother's age at a birth comes from the country's fertility by age, the number of siblings from the fertility rate of the birth year, marriages from the mean age at first marriage, and who is alive from a survival curve that matches the country's life expectancy. Data from UN World Population Prospects 2024, the UN World Marriage Data and the UN household database.
 
-- **Stepparents and Households**. Ask for `stepparents` to get the partners a parent took while the anchor was a child, and for `home` to get who the anchor lives with at the reference date (alone, a couple, with children, with parents, three generations), drawn from the country's household figures. Both are off by default and then change nothing else.
+- **Stepparents and Households**. Ask for `stepparents` to get the partners a parent took while the anchor was a child, with the children the parent had with them and their own children from before (stepsiblings), and for `home` to get who the anchor lives with at the reference date (alone, a couple, with children, with parents, three generations), drawn from the country's household figures. Both are off by default and then change nothing else.
 
 - **A Person You Know**. Give the anchor's name, parents, siblings or unions and the rest is built to match; `expand()` builds the family of any member of a family so that the two agree.
 
