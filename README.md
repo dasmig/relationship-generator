@@ -101,7 +101,7 @@ Tested with:
 
 | Dependency | Version | Bundled | Purpose |
 |-----------|---------|---------|---------|
-| [dasmig-core](https://github.com/dasmig/dasmig-core) | 1.1 | Yes (`core.hpp`, `core/`) | Platform-independent random engine and distributions, data layers, JSON |
+| [dasmig-core](https://github.com/dasmig/dasmig-core) | 1.3 | Yes (`core.hpp`, `core/`) | Platform-independent random engine and distributions, data layers, JSON |
 | [birth-generator](https://github.com/dasmig/birth-generator) | 3.2 | No (headers on the include path) | The anchor, the country's age pyramid and life expectancy |
 | [name-generator](https://github.com/dasmig/name-generator) | 4.5 | No (headers on the include path) | Names by culture, and the names of relatives |
 | [Catch2](https://github.com/catchorg/Catch2) | 3.x | Yes (amalgamated) | Unit testing |
