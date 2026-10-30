@@ -2,7 +2,7 @@
 # Run: doxygen Doxyfile
 
 PROJECT_NAME           = "Relationship Generator"
-PROJECT_NUMBER         = 1.2.1
+PROJECT_NUMBER         = 1.2.2
 PROJECT_BRIEF          = "Believable families around a person: parents, siblings, partners and children, with ages and names for C++23"
 PROJECT_LOGO           =
 
